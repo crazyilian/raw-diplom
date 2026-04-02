@@ -129,6 +129,7 @@ def train_anomaly_detector(
     *,
     wandb_run=None,
     config_snapshot: dict[str, Any] | None = None,
+    save_last: bool = False,
 ):
     """Train a detector, evaluate it on schedule and save local/W&B artifacts."""
     save_dir = Path(save_dir)
@@ -261,13 +262,15 @@ def train_anomaly_detector(
             # Early stopping is checked only after a full evaluation snapshot is saved.
             if early_stopping["enabled"] and patience_left < 0:
                 history["stopped_early"] = True
-                torch.save(detector.state_dict(), checkpoints_dir / "last.pt")
+                if save_last:
+                    torch.save(detector.state_dict(), checkpoints_dir / "last.pt")
                 if wandb_run is not None:
                     wandb_run.log(log_payload)
                 break
 
         # `last.pt` is refreshed every epoch so interrupted runs still leave the most recent weights behind.
-        torch.save(detector.state_dict(), checkpoints_dir / "last.pt")
+        if save_last:
+            torch.save(detector.state_dict(), checkpoints_dir / "last.pt")
         if wandb_run is not None:
             wandb_run.log(log_payload)
 
