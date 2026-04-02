@@ -89,7 +89,7 @@ for hidden_dims in hidden_dim_variants:
     for seed in seeds:
         config = copy.deepcopy(base_config)
         dims_slug = "-".join(map(str, hidden_dims))
-        name = f"{cur_id}-s{seed}-dims-{dims_slug}"
+        name = f"{cur_id:0>3}-s{seed}-dims-{dims_slug}"
         config["run"] = {
             **config["run"],
             "name": name,

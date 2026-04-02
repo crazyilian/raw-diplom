@@ -7,6 +7,5 @@ rarfile
 requests
 scikit-learn
 scipy
-torch
 tqdm
 wandb
