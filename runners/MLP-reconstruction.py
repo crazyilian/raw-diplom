@@ -64,7 +64,6 @@ base_config["wandb"] = {
     "tags": ["mlp", "reconstruction", "pu"],
 }
 
-
 ##### hyperparameters prepare #####
 
 input_sz = 27 * 120
@@ -100,6 +99,12 @@ for hidden_dims in hidden_dim_variants:
         sweep_configs.append(config)
 
 print("total planned runs:", len(sweep_configs))
+import sys
+args = list(map(int, sys.argv[1:]))
+if len(args) == 2:
+    sweep_configs = sweep_configs[args[0]:args[1]]
+    print("planned runs after slice:", len(sweep_configs))
+
 
 ##### run experiments #####
 
