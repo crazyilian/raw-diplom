@@ -1,0 +1,12 @@
+matplotlib
+numpy
+pandas
+pyarrow
+PyWavelets
+rarfile
+requests
+scikit-learn
+scipy
+torch
+tqdm
+wandb
