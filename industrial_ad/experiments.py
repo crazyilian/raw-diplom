@@ -91,13 +91,13 @@ def _build_summary(run_dir: Path, config: dict[str, Any], runtime: dict[str, Any
     return summary
 
 
-def run_experiment(config: dict[str, Any], *, overwrite: bool = False, skip_existing: bool = False) -> dict[str, Any]:
+def run_experiment(config: dict[str, Any], *, overwrite: bool = False, skip_existing: bool = False, data_bundle=None) -> dict[str, Any]:
     """Run one experiment described by a fully explicit config."""
     validate_experiment_config(config)
     run_dir = Path(config["run"]["dir"])
     summary_path = run_dir / "summary.json"
     if summary_path.exists() and skip_existing:
-        return load_json(summary_path)
+        return load_json(summary_path), data_bundle
     if run_dir.exists() and overwrite:
         import shutil
 
@@ -114,7 +114,8 @@ def run_experiment(config: dict[str, Any], *, overwrite: bool = False, skip_exis
         raise ValueError(f"Unknown dataset: {config['dataset']['name']}")
 
     # Build the data first, then infer all runtime-only shapes from a real batch.
-    data_bundle = build_pu_dataloaders(config)
+    if data_bundle is None:
+        data_bundle = build_pu_dataloaders(config)
     sample_batch = next(iter(data_bundle["loaders"]["train"]))
     detector, runtime = _build_detector(config, sample_batch[0].float(), sample_batch[1].float())
 
@@ -149,7 +150,7 @@ def run_experiment(config: dict[str, Any], *, overwrite: bool = False, skip_exis
         if wandb_run is not None:
             wandb_run.finish()
 
-    return summary
+    return summary, data_bundle
 
 
 def run_experiments(
@@ -158,12 +159,17 @@ def run_experiments(
     overwrite: bool = False,
     skip_existing: bool = True,
     stop_on_error: bool = True,
+    share_data_bundle: bool = True,
 ) -> list[dict[str, Any]]:
     """Run a list of explicit experiment configs one by one."""
     results = []
+    data_bundle = None
     for config in tqdm.tqdm(configs, desc='experiments'):
         try:
-            results.append(run_experiment(config, overwrite=overwrite, skip_existing=skip_existing))
+            summary, new_data_bundle = run_experiment(config, overwrite=overwrite, skip_existing=skip_existing, data_bundle=data_bundle)
+            if share_data_bundle and new_data_bundle is not None:
+                data_bundle = new_data_bundle
+            results.append(summary)
         except Exception as exc:
             if stop_on_error:
                 raise
@@ -202,3 +208,4 @@ def load_detector_from_run(run_dir: str | Path, checkpoint: str = "best"):
     detector.load_state_dict(torch.load(checkpoint_path, map_location="cpu"))
     detector.eval()
     return detector, config
+
