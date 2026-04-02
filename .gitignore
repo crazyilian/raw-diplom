@@ -1,0 +1,7 @@
+data/
+runs/
+wandb/
+__pycache__/
+*.pyc
+.idea/
+.ipynb_checkpoints/

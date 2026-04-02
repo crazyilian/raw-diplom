@@ -1,0 +1,106 @@
+import copy
+from pathlib import Path
+
+from industrial_ad import (
+    DEFAULT_EXPERIMENT_CONFIG,
+    clone_config,
+    run_experiments,
+)
+
+##### base config #####
+
+base_name = 'MLP-reconstruction'
+base_config = clone_config(DEFAULT_EXPERIMENT_CONFIG)
+base_config["run"] = {
+    "name": None,
+    "dir": f"./runs/{base_name}/",
+    "seed": None,
+    "notes": "MLP reconstruction baseline for PU.",
+    "tags": ["mlp", "reconstruction", "pu"],
+}
+base_config["task"] = {
+    "type": "reconstruction",
+}
+base_config["model"] = {
+    "name": "window_mlp",
+    "params": {
+        "hidden_dims": None,
+        "activation": "relu",
+        "dropout": 0.0,
+    },
+}
+base_config["optimizer"] = {
+    "name": "adamw",
+    "params": {
+        "lr": 0.001,
+        "weight_decay": 0.003,
+    },
+}
+base_config["trainer"] = {
+    "epochs": 210,
+    "eval_every_n_epochs": 10,
+    "device": "cuda",
+    "amp": False,
+    "clip_grad_norm": 1.0,
+    "checkpoint": {
+        "metric": "val/roc_auc",
+        "mode": "max",
+        "min_delta": 0.0,
+    },
+    "early_stopping": {
+        "enabled": False,
+        "metric": "val/roc_auc",
+        "mode": "max",
+        "patience": 12,
+        "min_delta": 0.0,
+    },
+}
+base_config["wandb"] = {
+    "enabled": False,
+    "project": "project-name",
+    "entity": "",
+    "mode": "offline",
+    "group": base_name,
+    "tags": ["mlp", "reconstruction", "pu"],
+}
+
+
+##### hyperparameters prepare #####
+
+input_sz = 27 * 120
+alldims = [27, 27*2, 27*4, 27*8, 27*16, 27*32, 27*64][::-1]
+hidden_dim_variants = []
+
+for mask in range(2**len(alldims)):
+    dims = [input_sz]
+    for i in range(len(alldims)):
+        if ((mask >> i) & 1):
+            dims.append(alldims[i])
+    if len(dims) == 1:
+        continue
+    hidden_dim_variants.append(dims)
+
+seeds = [42, 43, 44]
+
+sweep_configs = []
+cur_id = 0
+for hidden_dims in hidden_dim_variants:
+    cur_id += 1
+    for seed in seeds:
+        config = copy.deepcopy(base_config)
+        dims_slug = "-".join(map(str, hidden_dims))
+        name = f"{cur_id}-s{seed}-dims-{dims_slug}"
+        config["run"] = {
+            **config["run"],
+            "name": name,
+            "dir": str(Path(config["run"]["dir"]) / name),
+            "seed": seed,
+        }
+        config["model"]["params"]["hidden_dims"] = hidden_dims
+        sweep_configs.append(config)
+
+print("total planned runs:", len(sweep_configs))
+
+##### run experiments #####
+
+run_experiments(sweep_configs, skip_existing=True)
