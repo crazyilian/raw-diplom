@@ -20,7 +20,7 @@ def build_activation(name: str) -> nn.Module:
     return activations[name.lower()]()
 
 
-class WindowMLP(nn.Module):
+class MLPAutoencoder(nn.Module):
     """Mirror-symmetric MLP for window reconstruction or forecasting."""
 
     def __init__(
@@ -35,9 +35,9 @@ class WindowMLP(nn.Module):
         self.input_shape = tuple(int(value) for value in input_shape)
         self.output_shape = tuple(int(value) for value in output_shape)
         if len(self.input_shape) != 2 or len(self.output_shape) != 2:
-            raise ValueError("WindowMLP expects shapes in the form (time_steps, channels).")
+            raise ValueError("MLPAutoencoder expects shapes in the form (time_steps, channels).")
         if not hidden_dims:
-            raise ValueError("WindowMLP requires at least one hidden dimension.")
+            raise ValueError("MLPAutoencoder requires at least one hidden dimension.")
 
         self.activation_name = activation
         self.dropout = float(dropout)
