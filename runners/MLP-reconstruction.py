@@ -100,11 +100,9 @@ for hidden_dims in hidden_dim_variants:
 
 print("total planned runs:", len(sweep_configs))
 import sys
-args = list(map(int, sys.argv[1:]))
-if len(args) == 2:
-    sweep_configs = sweep_configs[args[0]:args[1]]
-    print("planned runs after slice:", len(sweep_configs))
-
+args = list(map(lambda x: None if x == "None" else int(x), sys.argv[1:]))
+sweep_configs = sweep_configs[slice(*args)]
+print("planned runs after slice:", len(sweep_configs))
 
 ##### run experiments #####
 
