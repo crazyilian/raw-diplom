@@ -13,7 +13,7 @@
     python yadisk_simple_download.py --local "/path/to/local" --remote-root "disk:/backup" --token "TOKEN"
 
 Чтобы перезаписывать обычные файлы с тем же именем, но другим содержимым:
-    --overwrite-different-size
+    --overwrite-different-md5
 
 Правила для сравнения:
 - обычные файлы считаются совпавшими, если совпадает md5;

@@ -82,7 +82,7 @@ def main() -> None:
     parser.add_argument("--local", required=True, help="Local folder")
     parser.add_argument("--remote-root", required=True, help="Remote folder on Yandex Disk")
     parser.add_argument("--token", required=True, help="Yandex OAuth token")
-    parser.add_argument("--overwrite-different-size", action="store_true", help="Overwrite local regular files when the md5 is different")
+    parser.add_argument("--overwrite-different-md5", action="store_true", help="Overwrite local regular files when the md5 is different")
     args = parser.parse_args()
 
     local_root = Path(args.local).expanduser().resolve()
@@ -91,7 +91,7 @@ def main() -> None:
 
     client = DiskClient(args.token)
     remote_root = normalize_remote_path(args.remote_root)
-    sync_download_dir(client, remote_root, local_root, args.overwrite_different_size)
+    sync_download_dir(client, remote_root, local_root, args.overwrite_different_md5)
 
 
 if __name__ == "__main__":
