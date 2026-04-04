@@ -4,17 +4,60 @@ import hashlib
 import os
 import shutil
 import tempfile
+import time
 import zipfile
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Callable, Dict, Optional, TypeVar
 
 import requests
 
 BASE_URL = "https://cloud-api.yandex.net/v1/disk"
-API_TIMEOUT = (30, 300)
-FILE_TIMEOUT = (30, 3600)
+API_TIMEOUT = (10, 60)
+FILE_TIMEOUT = (10, 300)
 LIST_LIMIT = 1000
 TMP_DIR = Path("./tmp")
+RETRY_ATTEMPTS = 3
+RETRY_DELAY = 2
+RETRY_STATUSES = {408, 429, 500, 502, 503, 504}
+
+T = TypeVar("T")
+
+
+class DiskTransientError(RuntimeError):
+    pass
+
+
+def _response_payload(response: requests.Response) -> object:
+    try:
+        return response.json()
+    except Exception:
+        return response.text
+
+
+def _raise_for_status(response: requests.Response, action: str, *, allow_statuses: tuple[int, ...] = ()) -> requests.Response:
+    if response.status_code < 400 or response.status_code in allow_statuses:
+        return response
+
+    message = f"{action} failed: {response.status_code} {_response_payload(response)}"
+    if response.status_code in RETRY_STATUSES:
+        raise DiskTransientError(message)
+    raise RuntimeError(message)
+
+
+def _retry(action: str, operation: Callable[[], T]) -> T:
+    last_error: Exception | None = None
+
+    for attempt in range(1, RETRY_ATTEMPTS + 1):
+        try:
+            return operation()
+        except (requests.RequestException, DiskTransientError) as error:
+            last_error = error
+            if attempt == RETRY_ATTEMPTS:
+                break
+            print(f"WARN   {action} ({error}), retry {attempt + 1}/{RETRY_ATTEMPTS}")
+            time.sleep(RETRY_DELAY)
+
+    raise DiskTransientError(f"{action} failed after {RETRY_ATTEMPTS} attempts: {last_error}")
 
 
 class DiskClient:
@@ -22,62 +65,49 @@ class DiskClient:
         self.session = requests.Session()
         self.session.headers.update({"Authorization": f"OAuth {token}"})
 
-    def _request(self, method: str, url: str, *, params=None) -> requests.Response:
-        response = self.session.request(method, url, params=params, timeout=API_TIMEOUT)
-        if response.status_code >= 400:
+    def _request(self, method: str, url: str, *, params=None, allow_statuses: tuple[int, ...] = ()) -> requests.Response:
+        action = f"{method} {url}"
+        def operation() -> requests.Response:
+            response = self.session.request(method, url, params=params, timeout=API_TIMEOUT)
             try:
-                payload = response.json()
+                return _raise_for_status(response, action, allow_statuses=allow_statuses)
             except Exception:
-                payload = response.text
-            raise RuntimeError(f"{method} {url} failed: {response.status_code} {payload}")
-        return response
+                response.close()
+                raise
+
+        return _retry(action, operation)
 
     def get_meta(self, remote_path: str) -> Optional[dict]:
-        response = self.session.get(
+        response = self._request(
+            "GET",
             f"{BASE_URL}/resources",
             params={"path": remote_path},
-            timeout=API_TIMEOUT,
+            allow_statuses=(404,),
         )
         if response.status_code == 404:
             return None
-        if response.status_code >= 400:
-            try:
-                payload = response.json()
-            except Exception:
-                payload = response.text
-            raise RuntimeError(f"GET meta failed: {response.status_code} {payload}")
         return response.json()
 
     def get_file_meta(self, remote_path: str) -> Optional[dict]:
-        response = self.session.get(
+        response = self._request(
+            "GET",
             f"{BASE_URL}/resources",
             params={"path": remote_file_path(remote_path)},
-            timeout=API_TIMEOUT,
+            allow_statuses=(404,),
         )
         if response.status_code == 404:
             return None
-        if response.status_code >= 400:
-            try:
-                payload = response.json()
-            except Exception:
-                payload = response.text
-            raise RuntimeError(f"GET file meta failed: {response.status_code} {payload}")
         return response.json()
 
     def ensure_dir(self, remote_path: str) -> bool:
         meta = self.get_meta(remote_path)
         if meta is None:
-            response = self.session.put(
+            self._request(
+                "PUT",
                 f"{BASE_URL}/resources",
                 params={"path": remote_path},
-                timeout=API_TIMEOUT,
+                allow_statuses=(409,),
             )
-            if response.status_code not in (201, 409):
-                try:
-                    payload = response.json()
-                except Exception:
-                    payload = response.text
-                raise RuntimeError(f"Create folder failed: {response.status_code} {payload}")
             return False
         if meta.get("type") != "dir":
             raise RuntimeError(f"Remote path is not a folder: {remote_path}")
@@ -127,41 +157,24 @@ class DiskClient:
         )
         href = response.json()["href"]
 
-        with local_path.open("rb") as fh:
-            put_response = requests.put(href, data=fh, timeout=FILE_TIMEOUT)
-        if put_response.status_code >= 400:
-            try:
-                payload = put_response.json()
-            except Exception:
-                payload = put_response.text
-            raise RuntimeError(f"Upload failed: {put_response.status_code} {payload}")
+        _retry(
+            f"upload {local_path} -> {remote_path}",
+            lambda: self._upload_once(href, local_path),
+        )
 
     def download_file(self, remote_path: str, local_path: Path) -> None:
-        response = self.session.get(
+        response = self._request(
+            "GET",
             f"{BASE_URL}/resources/download",
             params={"path": remote_file_path(remote_path)},
-            timeout=API_TIMEOUT,
         )
-        if response.status_code >= 400:
-            try:
-                payload = response.json()
-            except Exception:
-                payload = response.text
-            raise RuntimeError(f"GET download link failed: {response.status_code} {payload}")
         href = response.json()["href"]
 
         local_path.parent.mkdir(parents=True, exist_ok=True)
-        with requests.get(href, stream=True, timeout=FILE_TIMEOUT) as download_response:
-            if download_response.status_code >= 400:
-                try:
-                    payload = download_response.json()
-                except Exception:
-                    payload = download_response.text
-                raise RuntimeError(f"Download failed: {download_response.status_code} {payload}")
-            with local_path.open("wb") as fh:
-                for chunk in download_response.iter_content(chunk_size=1024 * 1024):
-                    if chunk:
-                        fh.write(chunk)
+        _retry(
+            f"download {remote_path} -> {local_path}",
+            lambda: self._download_once(href, local_path),
+        )
 
     def remote_md5(self, remote_path: str, remote_meta: dict | None = None) -> Optional[str]:
         if remote_meta is not None and remote_meta.get("type") == "file" and remote_meta.get("md5"):
@@ -175,6 +188,26 @@ class DiskClient:
 
         md5 = meta.get("md5")
         return str(md5).lower() if md5 else None
+
+    def _upload_once(self, href: str, local_path: Path) -> None:
+        with local_path.open("rb") as fh:
+            response = requests.put(href, data=fh, timeout=FILE_TIMEOUT)
+            try:
+                _raise_for_status(response, "Upload")
+            finally:
+                response.close()
+
+    def _download_once(self, href: str, local_path: Path) -> None:
+        try:
+            with requests.get(href, stream=True, timeout=FILE_TIMEOUT) as download_response:
+                _raise_for_status(download_response, "Download")
+                with local_path.open("wb") as fh:
+                    for chunk in download_response.iter_content(chunk_size=1024 * 1024):
+                        if chunk:
+                            fh.write(chunk)
+        except (requests.RequestException, DiskTransientError):
+            local_path.unlink(missing_ok=True)
+            raise
 
 
 def normalize_remote_path(remote_path: str) -> str:
@@ -267,6 +300,6 @@ def extract_zip_to_clean_dir(zip_path: Path, target_dir: Path) -> None:
                 raise RuntimeError(f"Unsafe path inside zip: {member.filename}")
 
         if target_dir.exists():
-            shutil.rmtree(target_dir)
+            remove_local_path(target_dir)
         target_dir.mkdir(parents=True, exist_ok=True)
         zf.extractall(target_dir)
