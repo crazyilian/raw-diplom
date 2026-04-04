@@ -99,8 +99,12 @@ for hidden_dims in hidden_dim_variants:
         sweep_configs.append(config)
 
 print("total planned runs:", len(sweep_configs))
+
+##### slice hyperparameters #####
+
 import sys
 args = list(map(lambda x: None if x == "None" else int(x), sys.argv[1:]))
+if not args: args = [None, None, None]
 sweep_configs = sweep_configs[slice(*args)]
 print("planned runs after slice:", len(sweep_configs))
 
