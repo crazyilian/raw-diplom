@@ -83,7 +83,6 @@ base_config["wandb"] = {
 ##### hyperparameters prepare #####
 
 seeds = [42, 43, 44]
-seeds=[0]
 
 sweep_configs = []
 cur_id = 0
