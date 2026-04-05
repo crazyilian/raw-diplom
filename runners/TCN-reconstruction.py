@@ -9,7 +9,7 @@ from industrial_ad import (
 
 ##### base config #####
 
-base_name = 'debug-TCN-reconstruction'
+base_name = 'TCN-reconstruction'
 base_config = clone_config(DEFAULT_EXPERIMENT_CONFIG)
 base_config["run"] = {
     "name": None,
@@ -129,4 +129,4 @@ print("planned runs after slice:", len(sweep_configs))
 
 ##### run experiments #####
 
-run_experiments(sweep_configs, skip_existing=True, dry_run=True)
+run_experiments(sweep_configs, skip_existing=True)
