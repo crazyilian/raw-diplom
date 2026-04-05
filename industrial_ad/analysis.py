@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 import time
+import tqdm
 from pathlib import Path
 from typing import Any, Sequence
 
@@ -146,7 +147,7 @@ def benchmark_runs(
 ) -> list[dict[str, Any]]:
     """Benchmark an explicit list of run directories and optionally update their summaries."""
     results = []
-    for run_dir in run_dirs:
+    for run_dir in tqdm.tqdm(run_dirs):
         metrics = benchmark_run(
             run_dir,
             checkpoint=checkpoint,
