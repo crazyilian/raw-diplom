@@ -88,35 +88,39 @@ seeds = [42, 43, 44]
 sweep_configs = []
 cur_id = 0
 for separable in [False]:
-    for norm in ["batch", "layer", "none"]:
+    for norm in ["layer"]:
         for hidden_channels in [32]:
             for latent_channels in [8]:
                 for num_blocks in [5]:
                     for kernel_size in [3]:
-                        if kernel_size == 5 and num_blocks == 5:
-                            continue
-                        if kernel_size == 3 and num_blocks == 3:
-                            continue
+                        for epochs in [60, 110, 210]:
+                            if kernel_size == 5 and num_blocks == 5:
+                                continue
+                            if kernel_size == 3 and num_blocks == 3:
+                                continue
 
-                        cur_id += 1
-                        for seed in seeds:
-                            config = copy.deepcopy(base_config)
-                            
-                            name = f"{cur_id:0>3}-s{seed}-sep{int(separable)}-norm_{norm}-hid{hidden_channels}-lat{latent_channels}-bl{num_blocks}-ker{kernel_size}"
-                            config["run"] = {
-                                **config["run"],
-                                "name": name,
-                                "dir": str(Path(config["run"]["dir"]) / name),
-                                "seed": seed,
-                            }
-                            config["model"]["params"]["separable"] = separable
-                            config["model"]["params"]["norm"] = norm
-                            config["model"]["params"]["hidden_channels"] = hidden_channels
-                            config["model"]["params"]["latent_channels"] = latent_channels
-                            config["model"]["params"]["num_blocks"] = num_blocks
-                            config["model"]["params"]["kernel_size"] = kernel_size
+                            cur_id += 1
+                            for seed in seeds:
+                                config = copy.deepcopy(base_config)
+                                
+                                name = f"{cur_id:0>3}-s{seed}-sep{int(separable)}-norm_{norm}-hid{hidden_channels}-lat{latent_channels}-bl{num_blocks}-ker{kernel_size}"
+                                if epochs != 110:
+                                    name += f'-ep{epochs}'
+                                config["run"] = {
+                                    **config["run"],
+                                    "name": name,
+                                    "dir": str(Path(config["run"]["dir"]) / name),
+                                    "seed": seed,
+                                }
+                                config["model"]["params"]["separable"] = separable
+                                config["model"]["params"]["norm"] = norm
+                                config["model"]["params"]["hidden_channels"] = hidden_channels
+                                config["model"]["params"]["latent_channels"] = latent_channels
+                                config["model"]["params"]["num_blocks"] = num_blocks
+                                config["model"]["params"]["kernel_size"] = kernel_size
+                                config["trainer"]["epochs"] = epochs
 
-                            sweep_configs.append(config)
+                                sweep_configs.append(config)
 
 print("total planned runs:", len(sweep_configs))
 

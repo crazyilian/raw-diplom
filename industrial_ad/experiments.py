@@ -91,7 +91,22 @@ def _build_summary(run_dir: Path, config: dict[str, Any], runtime: dict[str, Any
     return summary
 
 
-def run_experiment(config: dict[str, Any], *, overwrite: bool = False, skip_existing: bool = False, data_bundle=None) -> dict[str, Any]:
+def run_experiment(
+        config: dict[str, Any], *,
+        overwrite: bool = False, 
+        skip_existing: bool = False, 
+        data_bundle: dict[str, Any] | None = None,
+        dry_run: bool = False
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
+    if dry_run:
+        validate_experiment_config(config)
+        if data_bundle is None:
+            data_bundle = build_pu_dataloaders(config)
+        sample_batch = next(iter(data_bundle["loaders"]["train"]))
+        detector, runtime = _build_detector(config, sample_batch[0].float(), sample_batch[1].float())
+        print(config["run"]["name"], sum([p.numel() for p in detector.model.parameters()]), detector.model.receptive_field)
+        return {}, data_bundle
+
     """Run one experiment described by a fully explicit config."""
     validate_experiment_config(config)
     run_dir = Path(config["run"]["dir"])
