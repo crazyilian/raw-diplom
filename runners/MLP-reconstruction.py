@@ -75,7 +75,7 @@ for mask in range(2**len(alldims)):
     for i in range(len(alldims)):
         if ((mask >> i) & 1):
             dims.append(alldims[i])
-    if len(dims) == 1:
+    if len(dims) == 0:
         continue
     hidden_dim_variants.append(dims)
 

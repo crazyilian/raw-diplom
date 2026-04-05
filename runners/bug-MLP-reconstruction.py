@@ -13,7 +13,7 @@ base_name = 'MLP-reconstruction'
 base_config = clone_config(DEFAULT_EXPERIMENT_CONFIG)
 base_config["run"] = {
     "name": None,
-    "dir": f"./runs/{base_name}/",
+    "dir": f"./runs/bug-{base_name}/",
     "seed": None,
     "notes": "MLP reconstruction baseline for PU.",
     "tags": ["mlp", "reconstruction", "pu"],
