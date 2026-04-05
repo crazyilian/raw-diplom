@@ -12,8 +12,8 @@ from typing import Callable, Dict, Optional, TypeVar
 import requests
 
 BASE_URL = "https://cloud-api.yandex.net/v1/disk"
-API_TIMEOUT = (10, 60)
-FILE_TIMEOUT = (10, 300)
+API_TIMEOUT = 5
+FILE_TIMEOUT = 10
 LIST_LIMIT = 1000
 TMP_DIR = Path("./tmp")
 RETRY_ATTEMPTS = 5
