@@ -1,4 +1,4 @@
-# !/usr/bin/sh
+#!/usr/bin/bash
 
 source $(dirname $0)/SECRETS.env
 
