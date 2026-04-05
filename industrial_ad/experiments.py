@@ -104,7 +104,7 @@ def run_experiment(
             data_bundle = build_pu_dataloaders(config)
         sample_batch = next(iter(data_bundle["loaders"]["train"]))
         detector, runtime = _build_detector(config, sample_batch[0].float(), sample_batch[1].float())
-        print(config["run"]["name"], sum([p.numel() for p in detector.model.parameters()]), detector.model.receptive_field)
+        print(config["run"]["name"], sum([p.numel() for p in detector.model.parameters()]))
         return {}, data_bundle
 
     """Run one experiment described by a fully explicit config."""
