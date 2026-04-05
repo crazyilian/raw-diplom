@@ -175,13 +175,14 @@ def run_experiments(
     skip_existing: bool = True,
     stop_on_error: bool = True,
     share_data_bundle: bool = True,
+    dry_run: bool = False,
 ) -> list[dict[str, Any]]:
     """Run a list of explicit experiment configs one by one."""
     results = []
     data_bundle = None
     for config in tqdm.tqdm(configs, desc='experiments'):
         try:
-            summary, new_data_bundle = run_experiment(config, overwrite=overwrite, skip_existing=skip_existing, data_bundle=data_bundle)
+            summary, new_data_bundle = run_experiment(config, overwrite=overwrite, skip_existing=skip_existing, data_bundle=data_bundle, dry_run=dry_run)
             if share_data_bundle and new_data_bundle is not None:
                 data_bundle = new_data_bundle
             results.append(summary)
