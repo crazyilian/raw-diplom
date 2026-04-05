@@ -71,7 +71,7 @@ alldims = [27, 27*2, 27*4, 27*8, 27*16, 27*32, 27*64][::-1]
 hidden_dim_variants = []
 
 for mask in range(2**len(alldims)):
-    dims = []
+    dims = [input_sz]
     for i in range(len(alldims)):
         if ((mask >> i) & 1):
             dims.append(alldims[i])
