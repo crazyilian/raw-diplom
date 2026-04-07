@@ -17,6 +17,7 @@ from yadisk_sync_common import (
     remote_entry,
     remote_file_path,
     remote_join,
+    remote_parent,
     run_in_pool,
     upload_text,
 )
@@ -44,15 +45,6 @@ def count_lines(local_dir: Path) -> int:
         else:
             raise RuntimeError(f"Unsupported local path: {child}")
     return total
-
-
-def prepare_dirs(client: DiskClient, local_dir: Path, remote_dir: str) -> None:
-    if (local_dir / "plots").is_dir():
-        return
-    client.ensure_dir(remote_dir)
-    for child in children(local_dir):
-        if child.is_dir():
-            prepare_dirs(client, child, remote_join(remote_dir, child.name))
 
 
 def collect_tasks(local_dir: Path, remote_dir: str) -> list[UploadTask]:
@@ -86,14 +78,32 @@ def upload_if_needed(
         progress.line("OK", local_text(shown_path))
         return True
 
+    if remote_meta is None:
+        client.ensure_dir(remote_parent(remote_path))
     client.upload_file(source_path, remote_path)
     progress.line("REPUT" if remote_meta is not None else "PUT", upload_text(shown_path, remote_path))
     return False
 
 
-def sync_tree(client: DiskClient, local_dir: Path, remote_dir: str, progress: ProgressLog) -> bool:
-    exact = client.ensure_dir(remote_dir)
-    remote_entries = client.list_dir(remote_dir)
+def sync_tree(
+    client: DiskClient,
+    local_dir: Path,
+    remote_dir: str,
+    progress: ProgressLog,
+    remote_exists: bool | None = None,
+) -> bool:
+    if remote_exists is None:
+        meta = remote_entry(client.get_meta(remote_dir, allow_missing=True))
+        if meta is None:
+            remote_entries = {}
+        elif meta.type == "dir":
+            remote_entries = client.list_dir(remote_dir)
+        else:
+            raise RuntimeError(f"Remote file blocks folder upload: {remote_dir}")
+    else:
+        remote_entries = client.list_dir(remote_dir) if remote_exists else {}
+
+    exact = True
     names: set[str] = set()
 
     for child in children(local_dir):
@@ -108,7 +118,7 @@ def sync_tree(client: DiskClient, local_dir: Path, remote_dir: str, progress: Pr
         if child.is_dir():
             if remote_meta is not None and remote_meta.type != "dir":
                 raise RuntimeError(f"Remote file blocks folder upload: {remote_path}")
-            exact = sync_tree(client, child, remote_path, progress) and exact
+            exact = sync_tree(client, child, remote_path, progress, remote_meta is not None) and exact
         elif child.is_file():
             exact = upload_if_needed(client, child, child, remote_path, remote_meta, progress) and exact
         else:
@@ -162,8 +172,6 @@ def main() -> None:
     client = DiskClient(args.token)
     remote_root = normalize_remote_path(args.remote_root)
 
-    log_line("INFO   prepare remote folders")
-    prepare_dirs(client, local_root, remote_root)
     log_line("INFO   scan local tree")
     tasks = collect_tasks(local_root, remote_root)
     if not tasks:

@@ -1,16 +1,18 @@
 from __future__ import annotations
 
 import argparse
+import threading
 from dataclasses import dataclass
 from functools import partial
+from multiprocessing.pool import ThreadPool
 from pathlib import Path
 
 from yadisk_sync_common import (
     DiskClient,
+    MAX_WORKERS,
     ProgressLog,
     RemoteEntry,
     download_text,
-    ensure_local_dir,
     extract_zip_to_clean_dir,
     file_md5,
     local_text,
@@ -21,6 +23,9 @@ from yadisk_sync_common import (
     run_in_pool,
     temp_zip_path,
 )
+
+SCAN_STATE = threading.local()
+COLLECT_SUBDIRS_THREADS_THRESHOLD = 8
 
 
 @dataclass(frozen=True)
@@ -41,41 +46,68 @@ def split_plots(remote_dir: str, remote_entries: dict[str, RemoteEntry]) -> Remo
     return plots
 
 
-def count_lines(client: DiskClient, remote_dir: str, remote_entries: dict[str, RemoteEntry] | None = None) -> int:
-    remote_entries = remote_entries or client.list_dir(remote_dir)
-    total = 1 if split_plots(remote_dir, remote_entries) is not None else 0
+def collect_subdirs(
+    items: list[tuple[DiskClient, str, Path]],
+) -> list[tuple[list[DownloadTask], int]]:
+    if len(items) <= COLLECT_SUBDIRS_THREADS_THRESHOLD or getattr(SCAN_STATE, "active", False):
+        return [collect_tree(*item) for item in items]
+
+    pool = ThreadPool(min(MAX_WORKERS, len(items)))
+    try:
+        results = list(pool.imap(collect_tree_in_pool, items))
+    except BaseException:
+        pool.terminate()
+        raise
+    else:
+        pool.close()
+    finally:
+        pool.join()
+    return results
+
+
+def collect_tree_in_pool(args: tuple[DiskClient, str, Path]) -> tuple[list[DownloadTask], int]:
+    SCAN_STATE.active = True
+    return collect_tree(*args)
+
+
+def collect_tree(client: DiskClient, remote_dir: str, local_dir: Path) -> tuple[list[DownloadTask], int]:
+    remote_entries = client.list_dir(remote_dir)
+    plots = split_plots(remote_dir, remote_entries)
+    tasks: list[DownloadTask] = []
+    total = 1 if plots is not None else 0
+    subdirs: list[tuple[DiskClient, str, Path]] = []
+
+    print("COLLECTING   ", remote_dir)
 
     for name, remote_meta in sorted(remote_entries.items()):
         if name == "plots.zip":
             continue
         remote_path = remote_join(remote_dir, name)
-        if remote_meta.type == "dir":
-            total += count_lines(client, remote_path)
-        elif remote_meta.type == "file":
-            total += 1
-        else:
-            raise RuntimeError(f"Unsupported remote type: {remote_meta.type} at {remote_path}")
-    return total
-
-
-def collect_tasks(client: DiskClient, remote_dir: str, local_dir: Path) -> list[DownloadTask]:
-    remote_entries = client.list_dir(remote_dir)
-    if split_plots(remote_dir, remote_entries) is not None:
-        return [DownloadTask(remote_dir, local_dir, count_lines(client, remote_dir, remote_entries), True)]
-
-    ensure_local_dir(local_dir)
-    tasks: list[DownloadTask] = []
-    for name, remote_meta in sorted(remote_entries.items()):
-        remote_path = remote_join(remote_dir, name)
         local_path = local_dir / name
 
         if remote_meta.type == "dir":
-            tasks.extend(collect_tasks(client, remote_path, local_path))
+            subdirs.append((client, remote_path, local_path))
         elif remote_meta.type == "file":
-            tasks.append(DownloadTask(remote_path, local_path, meta=remote_meta))
+            total += 1
+            if plots is None:
+                tasks.append(DownloadTask(remote_path, local_path, meta=remote_meta))
         else:
             raise RuntimeError(f"Unsupported remote type: {remote_meta.type} at {remote_path}")
-    return tasks
+
+    for child_tasks, child_total in collect_subdirs(subdirs):
+        total += child_total
+        if plots is None:
+            tasks.extend(child_tasks)
+
+    if plots is not None:
+        return [DownloadTask(remote_dir, local_dir, total, True)], total
+    return tasks, total
+
+
+def collect_tasks(client: DiskClient, remote_dir: str, local_dir: Path) -> list[DownloadTask]:
+    res = collect_tree(client, remote_dir, local_dir)[0]
+    res.sort(key=lambda task: str(task.local))
+    return res
 
 
 def sync_file(
@@ -112,7 +144,6 @@ def refresh_plots(client: DiskClient, remote_path: str, local_path: Path, progre
 
 
 def sync_tree(client: DiskClient, remote_dir: str, local_dir: Path, progress: ProgressLog) -> bool:
-    ensure_local_dir(local_dir)
     remote_entries = client.list_dir(remote_dir)
     plots = split_plots(remote_dir, remote_entries)
     changed = False

@@ -153,6 +153,7 @@ class DiskClient:
     def ensure_dir(self, remote_path: str) -> bool:
         meta = self.get_meta(remote_path, allow_missing=True)
         if meta is None:
+            self.ensure_dir(remote_parent(remote_path))
             self._request("PUT", "/resources", params={"path": remote_path}, allow_statuses=(409,)).close()
             return False
         if meta.get("type") != "dir":
@@ -274,6 +275,11 @@ def remote_file_path(remote_path: str) -> str:
     return remote_path + "fast" if remote_path.endswith(".zip") else remote_path
 
 
+def remote_parent(remote_path: str) -> str:
+    parent = remote_path.rsplit("/", 1)[0]
+    return "disk:/" if parent == "disk:" else parent
+
+
 def logical_remote_name(name: str, resource_type: str) -> str:
     return name[:-4] if resource_type == "file" and name.endswith(".zipfast") else name
 
@@ -284,12 +290,6 @@ def file_md5(path: Path) -> str:
         for chunk in iter(lambda: fh.read(8 * 1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
-
-
-def ensure_local_dir(path: Path) -> None:
-    if path.is_file():
-        path.unlink()
-    path.mkdir(parents=True, exist_ok=True)
 
 
 def remove_local_path(path: Path) -> None:
