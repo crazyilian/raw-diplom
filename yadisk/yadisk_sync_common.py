@@ -40,11 +40,10 @@ def log_line(text: str) -> None:
 
 
 def local_text(path: Path) -> str:
-    resolved = path.resolve(strict=False)
     try:
-        return str(resolved.relative_to(WORKDIR))
+        return str(path.resolve(strict=False).relative_to(WORKDIR))
     except ValueError:
-        return str(resolved)
+        return str(path.resolve(strict=False))
 
 
 def upload_text(local_path: Path, remote_path: str) -> str:
@@ -80,6 +79,12 @@ def retry(action: str, fn: Callable[[], T]) -> T:
     raise AssertionError("unreachable")
 
 
+def remote_entry(meta: dict | None) -> RemoteEntry | None:
+    if meta is None:
+        return None
+    return RemoteEntry(type=str(meta["type"]), md5=_lower_or_none(meta.get("md5")))
+
+
 class DiskClient:
     def __init__(self, token: str) -> None:
         self.token = token
@@ -101,33 +106,54 @@ class DiskClient:
         params: dict[str, object] | None = None,
         allow_statuses: tuple[int, ...] = (),
     ) -> requests.Response:
-        response = self._session().request(method, BASE_URL + path, params=params, timeout=API_TIMEOUT)
+        action = f"{method} {path}"
+
+        def send() -> requests.Response:
+            response = self._session().request(method, BASE_URL + path, params=params, timeout=API_TIMEOUT)
+            try:
+                _raise_for_status(response, action, allow_statuses=allow_statuses)
+                return response
+            except Exception:
+                response.close()
+                raise
+
+        return retry(action, send)
+
+    def _json(
+        self,
+        method: str,
+        path: str,
+        *,
+        params: dict[str, object] | None = None,
+        allow_statuses: tuple[int, ...] = (),
+    ) -> dict | None:
+        response = self._request(method, path, params=params, allow_statuses=allow_statuses)
         try:
-            _raise_for_status(response, f"{method} {path}", allow_statuses=allow_statuses)
-            return response
-        except Exception:
+            return None if response.status_code == 404 else response.json()
+        finally:
             response.close()
-            raise
+
+    def _href(self, path: str, remote_path: str, *, overwrite: bool = False) -> str:
+        params: dict[str, object] = {"path": remote_file_path(remote_path)}
+        if overwrite:
+            params["overwrite"] = "true"
+        data = self._json("GET", path, params=params)
+        if data is None:
+            raise RuntimeError(f"Missing href for {remote_path}")
+        return str(data["href"])
 
     def get_meta(self, remote_path: str, *, allow_missing: bool = False) -> dict | None:
-        response = self._request(
+        return self._json(
             "GET",
             "/resources",
             params={"path": remote_path},
             allow_statuses=(404,) if allow_missing else (),
         )
-        try:
-            if response.status_code == 404:
-                return None
-            return response.json()
-        finally:
-            response.close()
 
     def ensure_dir(self, remote_path: str) -> bool:
         meta = self.get_meta(remote_path, allow_missing=True)
         if meta is None:
-            response = self._request("PUT", "/resources", params={"path": remote_path}, allow_statuses=(409,))
-            response.close()
+            self._request("PUT", "/resources", params={"path": remote_path}, allow_statuses=(409,)).close()
             return False
         if meta.get("type") != "dir":
             raise RuntimeError(f"Remote file blocks folder: {remote_path}")
@@ -138,35 +164,25 @@ class DiskClient:
         offset = 0
 
         while True:
-            response = self._request(
-                "GET",
-                "/resources",
-                params={"path": remote_dir, "limit": LIST_LIMIT, "offset": offset},
-            )
-            try:
-                data = response.json()
-            finally:
-                response.close()
-
-            if data.get("type") != "dir":
+            data = self._json("GET", "/resources", params={"path": remote_dir, "limit": LIST_LIMIT, "offset": offset})
+            if data is None or data.get("type") != "dir":
                 raise RuntimeError(f"Remote path is not a folder: {remote_dir}")
 
             embedded = data.get("_embedded") or {}
             batch = embedded.get("items") or []
-            total = embedded.get("total", 0)
-
             for item in batch:
-                name = logical_remote_name(item["name"], item["type"])
-                items[name] = RemoteEntry(type=item["type"], md5=_lower_or_none(item.get("md5")))
+                items[logical_remote_name(item["name"], item["type"])] = RemoteEntry(
+                    type=item["type"],
+                    md5=_lower_or_none(item.get("md5")),
+                )
 
             offset += len(batch)
-            if offset >= total or not batch:
+            if not batch or offset >= embedded.get("total", 0):
                 return items
 
     def file_md5(self, remote_path: str, hint: RemoteEntry | None = None) -> str | None:
         if hint is not None and hint.type == "file" and hint.md5 is not None:
             return hint.md5
-
         meta = self.get_meta(remote_file_path(remote_path), allow_missing=True)
         if meta is None:
             return None
@@ -175,67 +191,48 @@ class DiskClient:
         return _lower_or_none(meta.get("md5"))
 
     def upload_file(self, local_path: Path, remote_path: str) -> None:
+        href = self._href("/resources/upload", remote_path, overwrite=True)
         action = f"upload {upload_text(local_path, remote_path)}"
 
-        def operation() -> None:
-            response = self._request(
-                "GET",
-                "/resources/upload",
-                params={"path": remote_file_path(remote_path), "overwrite": "true"},
-            )
-            try:
-                href = response.json()["href"]
-            finally:
-                response.close()
-
+        def send() -> None:
             with local_path.open("rb") as fh:
-                upload = requests.put(href, data=fh, timeout=FILE_TIMEOUT)
+                response = requests.put(href, data=fh, timeout=FILE_TIMEOUT)
                 try:
-                    _raise_for_status(upload, action)
+                    _raise_for_status(response, action)
                 finally:
-                    upload.close()
+                    response.close()
 
-        retry(action, operation)
+        retry(action, send)
 
     def download_file(self, remote_path: str, local_path: Path) -> None:
         local_path.parent.mkdir(parents=True, exist_ok=True)
+        href = self._href("/resources/download", remote_path)
         action = f"download {download_text(remote_path, local_path)}"
 
-        def operation() -> None:
-            response = self._request(
-                "GET",
-                "/resources/download",
-                params={"path": remote_file_path(remote_path)},
-            )
+        def send() -> None:
             try:
-                href = response.json()["href"]
-            finally:
-                response.close()
-
-            try:
-                with requests.get(href, stream=True, timeout=FILE_TIMEOUT) as download:
-                    _raise_for_status(download, action)
+                with requests.get(href, stream=True, timeout=FILE_TIMEOUT) as response:
+                    _raise_for_status(response, action)
                     with local_path.open("wb") as fh:
-                        for chunk in download.iter_content(chunk_size=8 * 1024 * 1024):
+                        for chunk in response.iter_content(chunk_size=8 * 1024 * 1024):
                             if chunk:
                                 fh.write(chunk)
             except (requests.RequestException, RuntimeError):
                 local_path.unlink(missing_ok=True)
                 raise
 
-        retry(action, operation)
+        retry(action, send)
 
 
 class ProgressLog:
     def __init__(self, total: int) -> None:
         self.total = total
         self.current = 0
-        self._lock = threading.Lock()
 
     def line(self, action: str, text: str) -> None:
-        with self._lock:
+        with PRINT_LOCK:
             self.current += 1
-            log_line(f"[{self.current}/{self.total}] {action:<6} {text}")
+            print(f"[{self.current}/{self.total}] {action:<6} {text}")
 
 
 def run_in_pool(items: Iterable[T], fn: Callable[[T], None]) -> None:
@@ -247,11 +244,13 @@ def run_in_pool(items: Iterable[T], fn: Callable[[T], None]) -> None:
     try:
         for _ in pool.imap(fn, items):
             pass
-        pool.close()
-        pool.join()
     except BaseException:
         pool.terminate()
         raise
+    else:
+        pool.close()
+    finally:
+        pool.join()
 
 
 def _lower_or_none(value: object) -> str | None:
@@ -276,9 +275,7 @@ def remote_file_path(remote_path: str) -> str:
 
 
 def logical_remote_name(name: str, resource_type: str) -> str:
-    if resource_type == "file" and name.endswith(".zipfast"):
-        return name[:-4]
-    return name
+    return name[:-4] if resource_type == "file" and name.endswith(".zipfast") else name
 
 
 def file_md5(path: Path) -> str:
@@ -290,7 +287,7 @@ def file_md5(path: Path) -> str:
 
 
 def ensure_local_dir(path: Path) -> None:
-    if path.exists() and path.is_file():
+    if path.is_file():
         path.unlink()
     path.mkdir(parents=True, exist_ok=True)
 
@@ -311,7 +308,7 @@ def temp_zip_path(prefix: str) -> Path:
 
 def make_temp_zip(source_dir: Path) -> Path:
     zip_path = temp_zip_path(f"{source_dir.name}_")
-    with zipfile.ZipFile(zip_path, mode="w", compression=zipfile.ZIP_STORED) as zf:
+    with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_STORED) as zf:
         for root, dirs, files in os.walk(source_dir):
             dirs.sort()
             files.sort()
