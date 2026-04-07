@@ -249,6 +249,7 @@ def plot_metric_history(
     labels: Sequence[str] | None = None,
     save_path: str | Path | None = None,
     yscale: str = "linear",
+    color_group_size: int = 1
 ):
     """Plot the history of one metric for several run directories."""
     fig, ax = plt.subplots(figsize=figsize)
@@ -272,7 +273,7 @@ def plot_metric_history(
             epochs = [record["epoch"] for record in history.get("evaluations", [])]
             values = [record["metrics"].get(metric) for record in history.get("evaluations", [])]
 
-        ax.plot(epochs, values, marker="o", linewidth=1.8, label=label)
+        ax.plot(epochs, values, marker="o", linewidth=1.8, label=label, c=f"C{index//color_group_size}")
 
     ax.set_xlabel("Epoch")
     ax.set_ylabel(metric)

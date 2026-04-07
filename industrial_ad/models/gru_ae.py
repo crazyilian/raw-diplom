@@ -29,7 +29,7 @@ class GRUAutoencoder(nn.Module):
         self.input_shape = tuple(int(v) for v in input_shape)
         self.output_shape = tuple(int(v) for v in output_shape)
         if len(self.input_shape) != 2 or len(self.output_shape) != 2:
-            raise ValueError("WindowGRUAutoencoder expects shapes in the form (time_steps, channels).")
+            raise ValueError("GRUAutoencoder expects shapes in the form (time_steps, channels).")
         if self.input_shape != self.output_shape:
             raise ValueError("This implementation is intended for reconstruction, so input_shape must equal output_shape.")
         if hidden_size <= 0 or latent_size <= 0:
@@ -97,7 +97,7 @@ class GRUAutoencoder(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         if x.ndim != 3:
-            raise ValueError(f"WindowGRUAutoencoder expects a 3D tensor, got shape {tuple(x.shape)}.")
+            raise ValueError(f"GRUAutoencoder expects a 3D tensor, got shape {tuple(x.shape)}.")
         if x.shape[1:] != self.input_shape:
             raise ValueError(
                 f"Expected input shape (*, {self.input_shape[0]}, {self.input_shape[1]}), got {tuple(x.shape)}."
