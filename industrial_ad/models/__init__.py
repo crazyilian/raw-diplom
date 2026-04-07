@@ -4,6 +4,7 @@ from typing import Any
 
 from industrial_ad.models.mlp_ae import MLPAutoencoder
 from industrial_ad.models.tcn_ae import TCNAutoencoder
+from industrial_ad.models.gru_ae import GRUAutoencoder
 
 
 def build_model(model_config: dict[str, Any], input_shape: tuple[int, ...], target_shape: tuple[int, ...]):
@@ -15,6 +16,8 @@ def build_model(model_config: dict[str, Any], input_shape: tuple[int, ...], targ
         return MLPAutoencoder(input_shape=input_shape, output_shape=target_shape, **model_params)
     if model_name == "tcn_ae":
         return TCNAutoencoder(input_shape=input_shape, output_shape=target_shape, **model_params)
+    if model_name == "gru_ae":
+        return GRUAutoencoder(input_shape=input_shape, output_shape=target_shape, **model_params)
 
     raise ValueError(f"Unknown model: {model_config['name']}")
 

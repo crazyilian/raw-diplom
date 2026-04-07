@@ -179,12 +179,19 @@ def run_experiments(
 ) -> list[dict[str, Any]]:
     """Run a list of explicit experiment configs one by one."""
     results = []
-    data_bundle = None
+    data_bundle, data_bundle_config = None, None
     for config in tqdm.tqdm(configs, desc='experiments'):
         try:
+            new_data_bundle_config = {"dataset": config["dataset"], "debug.dataset": config["debug"]["dataset"], "task": config["task"]}
+            if data_bundle_config != new_data_bundle_config and data_bundle_config is not None:
+                print("\n\nERROR: Sharing data bundle failed: mismatched configs\n")
+                print(data_bundle_config)
+                print(new_data_bundle_config)
+                print()
+                data_bundle, data_bundle_config = None, None
             summary, new_data_bundle = run_experiment(config, overwrite=overwrite, skip_existing=skip_existing, data_bundle=data_bundle, dry_run=dry_run)
-            if share_data_bundle and new_data_bundle is not None:
-                data_bundle = new_data_bundle
+            if share_data_bundle:
+                data_bundle, data_bundle_config = new_data_bundle, new_data_bundle_config
             results.append(summary)
         except Exception as exc:
             if stop_on_error:
