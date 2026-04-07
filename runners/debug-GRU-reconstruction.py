@@ -9,7 +9,7 @@ from industrial_ad import (
 
 ##### base config #####
 
-base_name = 'GRU-reconstruction'
+base_name = 'debug-GRU-reconstruction'
 base_config = clone_config(DEFAULT_EXPERIMENT_CONFIG)
 base_config["run"] = {
     "name": None,
