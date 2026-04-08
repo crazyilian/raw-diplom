@@ -91,7 +91,12 @@ class GRUAutoencoder(nn.Module):
 
     def decode(self, latent: torch.Tensor) -> torch.Tensor:
         decoder_inputs = self._build_decoder_inputs(latent)
-        hidden = self.decoder_hidden_projection(latent).view(self.num_layers, latent.shape[0], self.hidden_size)
+        hidden = (
+            self.decoder_hidden_projection(latent)
+            .view(latent.shape[0], self.num_layers, self.hidden_size)
+            .transpose(0, 1)
+            .contiguous()
+        )
         decoded, _ = self.decoder(decoder_inputs, hidden)
         return self.output_projection(decoded)
 

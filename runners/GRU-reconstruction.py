@@ -90,6 +90,8 @@ for num_layers in [1,2,3,4]:
             if num_layers == 4 and hidden_size >= 128:
                 continue
             cur_id += 1
+            if hidden_size != 64 or latent_size != hidden_size // 2 or num_layers == 4:
+                continue
             for seed in seeds:
                 config = copy.deepcopy(base_config)
                 name = f"{cur_id:0>3}-s{seed}-lay{num_layers}-hid{hidden_size}-lat{latent_size}"
