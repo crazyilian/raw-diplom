@@ -84,15 +84,13 @@ seeds = [42, 43, 44]
 sweep_configs = []
 cur_id = 0
 
-for reverse_target in [False, True]:
-    for teacher_forcing_ratio in [0.0, 0.25]:
-        for num_layers in [1,2,3,4]:
+for reverse_target in [True]:
+    for teacher_forcing_ratio in [0.25]:
+        for num_layers in [1,2,3]:
             for hidden_size in [32, 48, 64, 96, 128, 192]:
                 if num_layers == 2 and hidden_size >= 192:
                     continue
                 if num_layers == 3 and hidden_size >= 192:
-                    continue
-                if num_layers == 4 and hidden_size >= 128:
                     continue
                 cur_id += 1
                 for seed in seeds:
