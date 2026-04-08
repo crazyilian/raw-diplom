@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import torch
+from matplotlib.lines import Line2D
 from torch.profiler import ProfilerActivity, profile
 
 from industrial_ad.experiments import load_detector_from_run
@@ -103,12 +104,13 @@ def benchmark_run(
     return result
 
 
-def discover_run_dirs(root: str | Path) -> list[Path]:
+def discover_run_dirs(*roots: str | Path ) -> list[Path]:
     """Recursively find run directories under `root` by the presence of `summary.json`."""
-    root = Path(root)
-    if not root.exists():
-        return []
-    return sorted(summary_path.parent for summary_path in root.rglob("summary.json"))
+    res = []
+    for root in roots:
+        root = Path(root)
+        res += sorted(summary_path.parent for summary_path in root.rglob("summary.json"))
+    return res
 
 
 def load_run_summaries(run_dirs: Sequence[str | Path]) -> list[dict[str, Any]]:
@@ -206,27 +208,53 @@ def plot_tradeoff_scatter(
     *,
     x: str,
     y: str,
-    pareto_column: str | None = None,
+    pareto_column: str,
     label_column: str | None = None,
+    family_column: str | None = None,
     log_x: bool = False,
     figsize: tuple[int, int] = (8, 5),
     title: str | None = None,
     save_path: str | Path | None = None,
 ):
-    """Plot a metric/resource trade-off and optionally highlight the Pareto front."""
+    """Plot a metric/resource trade-off highlighting Pareto-optimal models."""
     fig, ax = plt.subplots(figsize=figsize)
-    others = df
-    pareto = pd.DataFrame(columns=df.columns)
-    if pareto_column is not None and pareto_column in df.columns:
-        pareto = df[df[pareto_column].astype(bool)]
-        others = df[~df[pareto_column].astype(bool)]
+    families = [None] if family_column is None else list(pd.unique(df[family_column]))
+    cmap = plt.get_cmap("tab10")
+    legend_handles = []
 
-    ax.scatter(others[x], others[y], s=32, alpha=0.6, label="_nolegend_")
-    if not pareto.empty:
-        ax.scatter(pareto[x], pareto[y], s=120, alpha=0.95)
-        if label_column is not None:
-            for _, row in pareto.iterrows():
-                ax.annotate(str(row[label_column]), (row[x], row[y]), xytext=(5, 5), textcoords="offset points")
+    for i, family in enumerate(families):
+        family_df = df if family_column is None else df[df[family_column] == family]
+        is_pareto = family_df[pareto_column].astype(bool)
+        others = family_df[~is_pareto]
+        pareto = family_df[is_pareto]
+        color = cmap(i)
+
+        if not others.empty:
+            ax.scatter(others[x], others[y], s=32, alpha=0.45, color=color)
+        if not pareto.empty:
+            ax.scatter(
+                pareto[x],
+                pareto[y],
+                s=140,
+                alpha=0.95,
+                color=color,
+                marker="X",
+                edgecolors="black",
+                linewidths=0.8,
+            )
+            if label_column is not None:
+                for _, row in pareto.iterrows():
+                    ax.annotate(str(row[label_column]), (row[x], row[y]), xytext=(5, 5), textcoords="offset points")
+
+        if family_column is not None:
+            legend_handles.append(
+                Line2D(
+                    [], [], marker="o", linestyle="", 
+                    color=color, markerfacecolor=color, markeredgecolor=color,
+                    markersize=6, alpha=1,
+                    label=str(family)
+                )
+            )
 
     ax.set_xlabel(x)
     ax.set_ylabel(y)
@@ -234,6 +262,8 @@ def plot_tradeoff_scatter(
     ax.grid(True, linestyle=":", linewidth=0.6)
     if log_x:
         ax.set_xscale("log")
+    if legend_handles:
+        ax.legend(handles=legend_handles)
     fig.tight_layout()
     if save_path is not None:
         fig.savefig(save_path, dpi=300, bbox_inches="tight")
