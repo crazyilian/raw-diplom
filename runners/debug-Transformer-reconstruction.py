@@ -10,7 +10,7 @@ from industrial_ad import (
 
 ##### base config #####
 
-base_name = 'Transformer-reconstruction'
+base_name = 'debug-Transformer-reconstruction'
 base_config = clone_config(DEFAULT_EXPERIMENT_CONFIG)
 base_config["run"] = {
     "name": None,
@@ -87,23 +87,28 @@ for num_layers in [2]:
     for d_model in [48]:
         for latent_dim in [12]:
             for dim_feedforward in [96]:
+                for lr in [6e-4, 3e-4, 1e-4]:
+                    for epochs in [60, 110, 210]:
 
-                cur_id += 1
-                for seed in seeds:
-                    config = copy.deepcopy(base_config)
-                    name = f"{cur_id:0>3}-s{seed}-lay{num_layers}-mod{d_model}-lat{latent_dim}-ff{dim_feedforward}"
-                    config["run"] = {
-                        **config["run"],
-                        "name": name,
-                        "dir": str(Path(config["run"]["dir"]) / name),
-                        "seed": seed,
-                    }
-                    config["model"]["params"]["num_layers"] = num_layers
-                    config["model"]["params"]["d_model"] = d_model
-                    config["model"]["params"]["latent_dim"] = latent_dim
-                    config["model"]["params"]["dim_feedforward"] = dim_feedforward
+                        cur_id += 1
+                        for seed in seeds:
+                            config = copy.deepcopy(base_config)
+                            name = f"{cur_id:0>3}-s{seed}-lay{num_layers}-mod{d_model}-lat{latent_dim}-ff{dim_feedforward}-lr{lr:.2}-ep{epochs}"
+                            config["run"] = {
+                                **config["run"],
+                                "name": name,
+                                "dir": str(Path(config["run"]["dir"]) / name),
+                                "seed": seed,
+                            }
+                            config["model"]["params"]["num_layers"] = num_layers
+                            config["model"]["params"]["d_model"] = d_model
+                            config["model"]["params"]["latent_dim"] = latent_dim
+                            config["model"]["params"]["dim_feedforward"] = dim_feedforward
 
-                    sweep_configs.append(config)
+                            config["optimizer"]["params"]["lr"] = lr
+                            config["trainer"]["epochs"] = epochs
+
+                            sweep_configs.append(config)
 
 print("total planned runs:", len(sweep_configs))
 
