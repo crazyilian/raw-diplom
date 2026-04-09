@@ -9,7 +9,7 @@ from industrial_ad import (
 
 ##### base config #####
 
-base_name = 'GRU-reconstruction'
+base_name = 'GRU-repeated-reconstruction'
 base_config = clone_config(DEFAULT_EXPERIMENT_CONFIG)
 base_config["run"] = {
     "name": None,
@@ -22,16 +22,13 @@ base_config["task"] = {
     "type": "reconstruction",
 }
 base_config["model"] = {
-    "name": "gru_ae",
+    "name": "gru_repeated_ae",
     "params": {
         "dropout": 0.0,
-        "bidirectional_encoder": False,
-        "learned_start": False,
 
-        "hidden_size": None,
+        "hidden_size": None, 
+        "latent_size": None,
         "num_layers": None,
-        "teacher_forcing_ratio": None,
-        "reverse_target": None,
     },
 }
 base_config["optimizer"] = {
@@ -83,31 +80,30 @@ seeds = [42, 43, 44]
 
 sweep_configs = []
 cur_id = 0
+for num_layers in [1,2,3,4]:
+    for hidden_size in [32, 48, 64, 96, 128, 192, 256]:
+        for latent_size in [hidden_size]:
+            if num_layers == 2 and hidden_size >= 192:
+                continue
+            if num_layers == 3 and hidden_size >= 192:
+                continue
+            if num_layers == 4 and hidden_size >= 128:
+                continue
+            cur_id += 1
+            for seed in seeds:
+                config = copy.deepcopy(base_config)
+                name = f"{cur_id:0>3}-s{seed}-lay{num_layers}-hid{hidden_size}-lat{latent_size}"
+                config["run"] = {
+                    **config["run"],
+                    "name": name,
+                    "dir": str(Path(config["run"]["dir"]) / name),
+                    "seed": seed,
+                }
+                config["model"]["params"]["hidden_size"] = hidden_size
+                config["model"]["params"]["latent_size"] = latent_size
+                config["model"]["params"]["num_layers"] = num_layers
 
-for reverse_target in [True]:
-    for teacher_forcing_ratio in [0.25]:
-        for num_layers in [1,2,3]:
-            for hidden_size in [32, 48, 64, 96, 128, 192]:
-                if num_layers == 2 and hidden_size >= 192:
-                    continue
-                if num_layers == 3 and hidden_size >= 192:
-                    continue
-                cur_id += 1
-                for seed in seeds:
-                    config = copy.deepcopy(base_config)
-                    name = f"{cur_id:0>3}-s{seed}-lay{num_layers}-hid{hidden_size}-rev{int(reverse_target)}-teach{teacher_forcing_ratio:.2}"
-                    config["run"] = {
-                        **config["run"],
-                        "name": name,
-                        "dir": str(Path(config["run"]["dir"]) / name),
-                        "seed": seed,
-                    }
-                    config["model"]["params"]["hidden_size"] = hidden_size
-                    config["model"]["params"]["num_layers"] = num_layers
-                    config["model"]["params"]["teacher_forcing_ratio"] = teacher_forcing_ratio
-                    config["model"]["params"]["reverse_target"] = reverse_target
-
-                    sweep_configs.append(config)
+                sweep_configs.append(config)
 
 print("total planned runs:", len(sweep_configs))
 
@@ -121,4 +117,4 @@ print("planned runs after slice:", len(sweep_configs))
 
 ##### run experiments #####
 
-run_experiments(sweep_configs, skip_existing=True)
+run_experiments(sweep_configs, skip_existing=True, dry_run=True)

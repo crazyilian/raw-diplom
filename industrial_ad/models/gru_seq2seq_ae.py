@@ -6,7 +6,7 @@ import torch
 from torch import nn
 
 
-class GRUAutoencoder(nn.Module):
+class GRUSeq2seqAutoencoder(nn.Module):
     """Canonical GRU encoder-decoder for fixed-window reconstruction.
 
     Input and output shapes are ``(batch, time_steps, channels)``.
