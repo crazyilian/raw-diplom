@@ -36,7 +36,7 @@ base_config["model"] = {
 base_config["optimizer"] = {
     "name": "adamw",
     "params": {
-        "lr": 6e-4,
+        "lr": 1e-3,
         "weight_decay": 1e-4,
     },
 }
@@ -83,11 +83,13 @@ seeds = [42, 43, 44]
 sweep_configs = []
 cur_id = 0
 
-for num_layers in [2]:
-    for d_model in [48]:
-        for latent_dim in [12]:
-            for dim_feedforward in [96]:
-
+for num_layers in [1, 2, 3]:
+    for d_model in [32, 48, 64, 96]:
+        for latent_dim in [4, 8, 12, 16]:
+            for dim_feedforward in [64, 96, 128]:
+                if d_model * 2 > dim_feedforward:
+                    continue
+    
                 cur_id += 1
                 for seed in seeds:
                     config = copy.deepcopy(base_config)
