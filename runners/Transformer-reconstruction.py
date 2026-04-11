@@ -83,13 +83,28 @@ seeds = [42, 43, 44]
 sweep_configs = []
 cur_id = 0
 
+params = []
+
 for num_layers in [1, 2, 3]:
     for d_model in [32, 48, 64, 96]:
         for latent_dim in [4, 8, 12, 16]:
             for dim_feedforward in [64, 96, 128]:
                 if d_model * 2 > dim_feedforward:
                     continue
-    
+                pp = (num_layers, d_model, latent_dim, dim_feedforward)
+                params.append(pp)
+for num_layers in [1, 2, 3]:
+    for d_model in [32, 48, 64, 96]:
+        for latent_dim in [4, 8, 12, 16, 2]:
+            for dim_feedforward in [64, 96, 128, 196]:
+                if d_model * 2 > dim_feedforward:
+                    continue
+                pp = (num_layers, d_model, latent_dim, dim_feedforward)
+                if pp in params:
+                    continue
+                params.append(pp)
+
+for (num_layers, d_model, latent_dim, dim_feedforward) in params:
                 cur_id += 1
                 for seed in seeds:
                     config = copy.deepcopy(base_config)
@@ -106,7 +121,6 @@ for num_layers in [1, 2, 3]:
                     config["model"]["params"]["dim_feedforward"] = dim_feedforward
 
                     sweep_configs.append(config)
-
 print("total planned runs:", len(sweep_configs))
 
 ##### slice hyperparameters #####
@@ -119,4 +133,4 @@ print("planned runs after slice:", len(sweep_configs))
 
 ##### run experiments #####
 
-run_experiments(sweep_configs, skip_existing=True)
+run_experiments(sweep_configs, skip_existing=True, dry_run=True)
