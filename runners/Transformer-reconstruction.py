@@ -133,4 +133,4 @@ print("planned runs after slice:", len(sweep_configs))
 
 ##### run experiments #####
 
-run_experiments(sweep_configs, skip_existing=True, dry_run=True)
+run_experiments(sweep_configs, skip_existing=True, dry_run=False)
