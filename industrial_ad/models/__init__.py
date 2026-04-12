@@ -8,6 +8,7 @@ from industrial_ad.models.gru_seq2seq_ae import GRUSeq2seqAutoencoder
 from industrial_ad.models.gru_repeated_ae import GRURepeatedAutoencoder
 from industrial_ad.models.pca import PCAReconstructionModel
 from industrial_ad.models.transformer_ae import TransformerAutoencoder
+from industrial_ad.models.conv_ae import ConvAutoencoder
 
 
 def build_model(model_config: dict[str, Any], input_shape: tuple[int, ...], target_shape: tuple[int, ...]):
@@ -27,6 +28,8 @@ def build_model(model_config: dict[str, Any], input_shape: tuple[int, ...], targ
         return PCAReconstructionModel(input_shape=input_shape, output_shape=target_shape, **model_params)
     if model_name == "transformer_ae":
         return TransformerAutoencoder(input_shape=input_shape, output_shape=target_shape, **model_params)
+    if model_name == "conv_ae":
+        return ConvAutoencoder(input_shape=input_shape, output_shape=target_shape, **model_params)
 
     raise ValueError(f"Unknown model: {model_config['name']}")
 
