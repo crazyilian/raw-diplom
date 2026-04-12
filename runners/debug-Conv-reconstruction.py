@@ -102,6 +102,8 @@ for hidden_channels in hidden_variants:
                         config["model"]["params"]["hidden_channels"] = hidden_channels
                         config["model"]["params"]["latent_channels"] = latent_channels
                         config["model"]["params"]["kernel_size"] = kernel_size
+                        config["optimizer"]["params"]["lr"] = lr
+                        config["trainer"]["epochs"] = epochs
 
                         sweep_configs.append(config)
 

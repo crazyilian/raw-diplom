@@ -89,7 +89,7 @@ for mask in range(1, 2 ** len(all_hidden_sizes)):
             cur.append(all_hidden_sizes[bit])
     if 32 not in cur:
         continue
-    diffs = [cur[i] - cur[i-1] for i in range(1, len(cur))]
+    diffs = [inds[i] - inds[i-1] for i in range(1, len(cur))]
     if len(diffs) > 0 and min(diffs) != max(diffs):
         continue
     hidden_variants.append(cur)
@@ -101,7 +101,11 @@ for hidden_channels in hidden_variants:
     if 128 // 2 ** len(hidden_channels) == 0:
         raise ValueError("Too many hidden layers, the time dimension is reduced to 0.")
     last = hidden_channels[-1]
-    for latent_channels in [last // 4, last // 2]:
+    for latent_channels in [last // 8, last // 4, last // 2]:
+        input_elements = 27 * 120
+        latent_elements = (120 // 2 ** len(hidden_channels)) * latent_channels
+        if not (input_elements // 20 <= latent_elements <= input_elements // 4):
+            continue
         if latent_channels == 0:
             continue
         for kernel_size in [3, 5, 7]:
