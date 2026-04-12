@@ -92,7 +92,7 @@ for hidden_channels in hidden_variants:
                     for seed in seeds:
                         config = copy.deepcopy(base_config)
                         
-                        name = f"{cur_id:0>3}-s{seed}-hid{'.'.join(map(str, hidden_channels))}-lat{latent_channels}-ker{kernel_size}"
+                        name = f"{cur_id:0>3}-s{seed}-lr{lr}-ep{epochs}"
                         config["run"] = {
                             **config["run"],
                             "name": name,
