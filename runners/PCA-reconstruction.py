@@ -70,7 +70,7 @@ base_config["wandb"] = {
 
 ##### hyperparameters prepare #####
 
-n_component_variants = [2, 4, 8, 16, 32, 64, 128]
+n_component_variants = [2, 4, 8, 16, 32, 64, 128, 96]
 seeds = [42, 43, 44]
 
 sweep_configs = []
