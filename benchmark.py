@@ -4,7 +4,7 @@ from industrial_ad import (
 )
 
 
-run_dirs = discover_run_dirs("./runs")
+run_dirs = discover_run_dirs("runs/MLP-reconstruction", "runs/TCN-reconstruction", "runs/GRU-repeated-reconstruction", "runs/GRU-seq2seq-reconstruction", 'runs/Transformer-reconstruction')
 
 benchmark_runs(
     run_dirs=run_dirs,
@@ -17,4 +17,5 @@ benchmark_runs(
         "num_runs": 2000,
         "profile_memory": True,
     },
+    skip_existing=False
 )
