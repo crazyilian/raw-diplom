@@ -7,7 +7,7 @@ import torch
 
 import tqdm
 from industrial_ad.datasets.PU.dataset import build_pu_dataloaders
-from industrial_ad.config import validate_experiment_config
+from industrial_ad.config import validate_experiment_config, is_pca_config
 from industrial_ad.models import build_model
 from industrial_ad.scoring import (
     AnomalyDetectorWrapper,
@@ -15,6 +15,7 @@ from industrial_ad.scoring import (
     build_score_estimator,
 )
 from industrial_ad.training import build_criterion, build_optimizer, build_scheduler, train_anomaly_detector
+from industrial_ad.training_pca import train_pca_anomaly_detector
 from industrial_ad.utils import clone_config, count_parameters, dump_json, load_json, parameter_size_bytes, seed_everything
 
 
@@ -140,26 +141,39 @@ def run_experiment(
     }
     dump_json(run_dir / "config.json", config_snapshot)
 
-    optimizer = build_optimizer(config["optimizer"], detector.model.parameters())
-    criterion = build_criterion(config["loss"])
-    scheduler = build_scheduler(config["scheduler"], optimizer, total_epochs=int(config["trainer"]["epochs"]))
     wandb_run = _init_wandb(config_snapshot)
 
     try:
-        _, train_summary = train_anomaly_detector(
-            detector,
-            data_bundle["loaders"]["train"],
-            data_bundle["loaders"]["val"],
-            data_bundle["loaders"]["test"],
-            optimizer,
-            scheduler,
-            criterion,
-            config_snapshot["trainer"],
-            config_snapshot["debug"]["trainer"],
-            run_dir,
-            wandb_run=wandb_run,
-            config_snapshot=config_snapshot,
-        )
+        if is_pca_config(config_snapshot):
+            _, train_summary = train_pca_anomaly_detector(
+                detector,
+                data_bundle["loaders"]["train"],
+                data_bundle["loaders"]["val"],
+                data_bundle["loaders"]["test"],
+                config_snapshot["trainer"],
+                config_snapshot["debug"]["trainer"],
+                run_dir,
+                wandb_run=wandb_run,
+                config_snapshot=config_snapshot,
+            )
+        else:
+            optimizer = build_optimizer(config["optimizer"], detector.model.parameters())
+            criterion = build_criterion(config["loss"])
+            scheduler = build_scheduler(config["scheduler"], optimizer, total_epochs=int(config["trainer"]["epochs"]))
+            _, train_summary = train_anomaly_detector(
+                detector,
+                data_bundle["loaders"]["train"],
+                data_bundle["loaders"]["val"],
+                data_bundle["loaders"]["test"],
+                optimizer,
+                scheduler,
+                criterion,
+                config_snapshot["trainer"],
+                config_snapshot["debug"]["trainer"],
+                run_dir,
+                wandb_run=wandb_run,
+                config_snapshot=config_snapshot,
+            )
         summary = _build_summary(run_dir, config_snapshot, config_snapshot["runtime"], detector, train_summary)
     finally:
         if wandb_run is not None:

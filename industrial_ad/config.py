@@ -134,6 +134,10 @@ DEFAULT_EXPERIMENT_CONFIG: dict[str, Any] = {
 }
 
 
+def is_pca_config(config: dict[str, Any]) -> bool:
+    return str(config["model"]["name"]).lower() == "pca"
+
+
 def make_default_config() -> dict[str, Any]:
     """Return a writable copy of the project config template."""
     return clone_config(DEFAULT_EXPERIMENT_CONFIG)
@@ -141,15 +145,17 @@ def make_default_config() -> dict[str, Any]:
 
 def validate_experiment_config(config: dict[str, Any]) -> None:
     """Validate the fields that must be explicitly set before a run starts."""
+    is_pca_model = is_pca_config(config)
     required_string_fields = {
         "run.name": config["run"]["name"],
         "run.dir": config["run"]["dir"],
         "task.type": config["task"]["type"],
         "dataset.name": config["dataset"]["name"],
         "model.name": config["model"]["name"],
-        "optimizer.name": config["optimizer"]["name"],
         "trainer.device": config["trainer"]["device"],
     }
+    if not is_pca_model:
+        required_string_fields["optimizer.name"] = config["optimizer"]["name"]
     for field_name, value in required_string_fields.items():
         if not isinstance(value, str) or not value.strip():
             raise ValueError(f"{field_name} must be a non-empty string.")

@@ -5,6 +5,7 @@ from industrial_ad import (
 
 
 run_dirs = discover_run_dirs("runs/MLP-reconstruction", "runs/TCN-reconstruction", "runs/GRU-repeated-reconstruction", "runs/GRU-seq2seq-reconstruction", 'runs/Transformer-reconstruction')
+# run_dirs += discover_run_dirs("runs/PCA-reconstruction")
 
 benchmark_runs(
     run_dirs=run_dirs,
