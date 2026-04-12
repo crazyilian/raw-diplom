@@ -43,7 +43,7 @@ base_config["scheduler"] = {
 base_config["trainer"] = {
     "epochs": 1,
     "eval_every_n_epochs": 1,
-    "device": "cuda",
+    "device": "cpu",
     "amp": False,
     "clip_grad_norm": 1.0,
     "checkpoint": {
