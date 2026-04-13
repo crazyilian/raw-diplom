@@ -47,7 +47,7 @@ base_config["scheduler"] =  {
     },
 }
 base_config["trainer"] = {
-    "epochs": 110,
+    "epochs": 160,
     "eval_every_n_epochs": 10,
     "device": "cuda",
     "amp": False,
@@ -108,7 +108,7 @@ for hidden_channels in hidden_variants:
             continue
         if latent_channels == 0:
             continue
-        for kernel_size in [3, 5, 7]:
+        for kernel_size in [3, 5, 7, 9]:
             cur_id += 1
             for seed in seeds:
                 config = copy.deepcopy(base_config)
