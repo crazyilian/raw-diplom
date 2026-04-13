@@ -4,19 +4,6 @@ from pathlib import Path
 from industrial_ad import DEFAULT_EXPERIMENT_CONFIG, clone_config, run_experiments
 
 
-# BASE_NAME = "TCN-forecasting"
-# SEEDS = [42, 43, 44]
-# HORIZON_SIZES = [8, 16, 32]
-# SEARCH_SPACE = [
-#     {"hidden_channels": 32, "num_blocks": 4, "kernel_size": 5, "separable": True, "dropout": 0.0},
-#     {"hidden_channels": 32, "num_blocks": 4, "kernel_size": 5, "separable": True, "dropout": 0.1},
-#     {"hidden_channels": 48, "num_blocks": 5, "kernel_size": 3, "separable": True, "dropout": 0.0},
-#     {"hidden_channels": 48, "num_blocks": 5, "kernel_size": 3, "separable": False, "dropout": 0.0},
-#     {"hidden_channels": 64, "num_blocks": 4, "kernel_size": 7, "separable": True, "dropout": 0.0},
-#     {"hidden_channels": 64, "num_blocks": 5, "kernel_size": 5, "separable": True, "dropout": 0.1},
-# ]
-
-
 base_name = 'TCN-forecasting'
 base_config = clone_config(DEFAULT_EXPERIMENT_CONFIG)
 base_config["run"] = {
