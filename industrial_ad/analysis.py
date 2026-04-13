@@ -212,6 +212,7 @@ def plot_tradeoff_scatter(
     label_column: str | None = None,
     family_column: str | None = None,
     log_x: bool = False,
+    log_y: bool = False,
     figsize: tuple[int, int] = (8, 5),
     title: str | None = None,
     save_path: str | Path | None = None,
@@ -262,6 +263,8 @@ def plot_tradeoff_scatter(
     ax.grid(True, linestyle=":", linewidth=0.6)
     if log_x:
         ax.set_xscale("log")
+    if log_y:
+        ax.set_yscale("log")
     if legend_handles:
         ax.legend(handles=legend_handles)
     fig.tight_layout()

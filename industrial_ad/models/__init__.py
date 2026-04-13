@@ -3,7 +3,9 @@ from __future__ import annotations
 from typing import Any
 
 from industrial_ad.models.mlp_ae import MLPAutoencoder
+from industrial_ad.models.mlp_forecaster import MLPForecaster
 from industrial_ad.models.tcn_ae import TCNAutoencoder
+from industrial_ad.models.tcn_forecaster import TCNForecaster
 from industrial_ad.models.gru_seq2seq_ae import GRUSeq2seqAutoencoder
 from industrial_ad.models.gru_repeated_ae import GRURepeatedAutoencoder
 from industrial_ad.models.pca import PCAReconstructionModel
@@ -24,12 +26,17 @@ def build_model(model_config: dict[str, Any], input_shape: tuple[int, ...], targ
         return GRUSeq2seqAutoencoder(input_shape=input_shape, output_shape=target_shape, **model_params)
     if model_name == "gru_repeated_ae":
         return GRURepeatedAutoencoder(input_shape=input_shape, output_shape=target_shape, **model_params)
-    if model_name == "pca":
-        return PCAReconstructionModel(input_shape=input_shape, output_shape=target_shape, **model_params)
     if model_name == "transformer_ae":
         return TransformerAutoencoder(input_shape=input_shape, output_shape=target_shape, **model_params)
     if model_name == "conv_ae":
         return ConvAutoencoder(input_shape=input_shape, output_shape=target_shape, **model_params)
+    if model_name == "pca":
+        return PCAReconstructionModel(input_shape=input_shape, output_shape=target_shape, **model_params)
+
+    if model_name == "mlp_forecaster":
+        return MLPForecaster(input_shape=input_shape, output_shape=target_shape, **model_params)
+    if model_name == "tcn_forecaster":
+        return TCNForecaster(input_shape=input_shape, output_shape=target_shape, **model_params)
 
     raise ValueError(f"Unknown model: {model_config['name']}")
 

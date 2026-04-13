@@ -110,20 +110,3 @@ class GRURepeatedAutoencoder(nn.Module):
         latent = self.encode(x)
         reconstruction = self.decode(latent)
         return reconstruction
-
-
-# if __name__ == "__main__":
-#     model = GRUAutoencoder(
-#         input_shape=(120, 27),
-#         output_shape=(120, 27),
-#         hidden_size=64,
-#         latent_size=32,
-#         num_layers=1,
-#         dropout=0.0,
-#         decoder_input="latent",
-#     )
-#     x = torch.randn(4, 120, 27)
-#     y = model(x)
-#     print("Input shape:", tuple(x.shape))
-#     print("Output shape:", tuple(y.shape))
-#     print("Trainable params:", sum(p.numel() for p in model.parameters() if p.requires_grad))

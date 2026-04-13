@@ -140,21 +140,3 @@ class GRUSeq2seqAutoencoder(nn.Module):
             reconstruction = reconstruction.flip(dims=(1,))
         return reconstruction
 
-
-# if __name__ == "__main__":
-#     model = WindowGRUSeq2SeqAutoencoder(
-#         input_shape=(120, 27),
-#         output_shape=(120, 27),
-#         hidden_size=64,
-#         num_layers=2,
-#         dropout=0.1,
-#         bidirectional_encoder=False,
-#         teacher_forcing_ratio=0.0,
-#         reverse_target=False,
-#         learned_start=False,
-#     )
-#     x = torch.randn(4, 120, 27)
-#     y = model(x)
-#     print("Input shape:", tuple(x.shape))
-#     print("Output shape:", tuple(y.shape))
-#     print("Trainable params:", sum(p.numel() for p in model.parameters() if p.requires_grad))

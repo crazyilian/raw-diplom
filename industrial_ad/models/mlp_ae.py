@@ -5,19 +5,7 @@ from typing import Iterable
 
 import torch
 from torch import nn
-
-
-def build_activation(name: str) -> nn.Module:
-    """Create the non-linearity used between MLP layers."""
-    activations = {
-        "relu": nn.ReLU,
-        "gelu": nn.GELU,
-        "silu": nn.SiLU,
-        "tanh": nn.Tanh,
-    }
-    if name.lower() not in activations:
-        raise ValueError(f"Unsupported activation: {name}")
-    return activations[name.lower()]()
+from .utils import build_activation
 
 
 class MLPAutoencoder(nn.Module):

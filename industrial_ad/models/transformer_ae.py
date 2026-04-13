@@ -5,19 +5,7 @@ from typing import Iterable
 
 import torch
 from torch import nn
-
-
-def build_activation(name: str) -> nn.Module:
-    activations = {
-        "relu": nn.ReLU,
-        "gelu": nn.GELU,
-        "silu": nn.SiLU,
-        "tanh": nn.Tanh,
-    }
-    key = name.lower()
-    if key not in activations:
-        raise ValueError(f"Unsupported activation: {name}")
-    return activations[key]()
+from .utils import build_activation
 
 
 class SinusoidalPositionalEncoding(nn.Module):
@@ -211,23 +199,3 @@ class TransformerAutoencoder(nn.Module):
         z = self.encode(x)
         return self.decode(z)
 
-
-# if __name__ == "__main__":
-#     model = WindowTransformerReconstruction(
-#         input_shape=(120, 27),
-#         output_shape=(120, 27),
-#         d_model=48,
-#         nhead=4,
-#         num_layers=2,
-#         latent_dim=12,
-#         dim_feedforward=96,
-#         dropout=0.1,
-#         activation="gelu",
-#         norm_first=True,
-#     )
-#     x = torch.randn(4, 120, 27)
-#     y = model(x)
-#     print("Input shape:", tuple(x.shape))
-#     print("Latent shape:", tuple(model.encode(x).shape))
-#     print("Output shape:", tuple(y.shape))
-#     print("Trainable params:", sum(p.numel() for p in model.parameters() if p.requires_grad))

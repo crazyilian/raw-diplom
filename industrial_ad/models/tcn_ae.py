@@ -5,19 +5,7 @@ from typing import Iterable, Sequence
 
 import torch
 from torch import nn
-
-
-def build_activation(name: str) -> nn.Module:
-    activations = {
-        "relu": nn.ReLU,
-        "gelu": nn.GELU,
-        "silu": nn.SiLU,
-        "tanh": nn.Tanh,
-    }
-    key = name.lower()
-    if key not in activations:
-        raise ValueError(f"Unsupported activation: {name}")
-    return activations[key]()
+from .utils import build_activation
 
 
 class DepthwiseSeparableConv1d(nn.Module):
@@ -246,23 +234,3 @@ class TCNAutoencoder(nn.Module):
         y = self.output_projection(y)
         return y.transpose(1, 2)
 
-
-# if __name__ == "__main__":
-#     model = TCNAutoencoder(
-#         input_shape=(120, 27),
-#         output_shape=(120, 27),
-#         hidden_channels=32,
-#         latent_channels=8,
-#         num_blocks=5,
-#         kernel_size=3,
-#         activation="gelu",
-#         dropout=0.05,
-#         separable=True,
-#         norm="batch",
-#     )
-#     x = torch.randn(4, 120, 27)
-#     y = model(x)
-#     print("Input shape:", tuple(x.shape))
-#     print("Output shape:", tuple(y.shape))
-#     print("Receptive field:", model.receptive_field)
-#     print("Trainable params:", sum(p.numel() for p in model.parameters() if p.requires_grad))
