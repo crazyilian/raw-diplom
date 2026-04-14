@@ -25,7 +25,7 @@ base_config["model"] = {
         "kernel_size": None,
         "dropout": 0.0,
         "separable": None, # True, False
-        "norm": "layer", # group, layer
+        "norm": "group", # group, layer
         "dilations": None, # auto
     },
 }
@@ -80,36 +80,38 @@ seeds = [42, 43, 44]
 sweep_configs = []
 cur_id = 0
 
-for horizon_size in [8, 16, 32, 64]:
-    for separable in [True, False]:
-        for hidden_channels in [16, 32, 48, 64]:
+for horizon_size in [16, 32, 64, 120]:
+    for separable in [True]:
+        for hidden_channels in [16, 32, 64]:
             for num_blocks in [2, 3, 4, 5]:
                 for kernel_size in [3, 5, 7]:
-                    
-                    dilations = [2**index for index in range(num_blocks)]
-                    receptive_field = 1 + 4 * (kernel_size - 1) * sum(dilations)
-                    if receptive_field > 250 or receptive_field < 70:
-                        continue
+                    for final_steps in [horizon_size // 4, horizon_size // 2, horizon_size]:
 
-                    cur_id += 1
-                    for seed in seeds:
-                        config = copy.deepcopy(base_config)
-                        
-                        name = f"{cur_id:0>3}-s{seed}-h{horizon_size}-sep{int(separable)}-hid{hidden_channels}-bl{num_blocks}-ker{kernel_size}"
-                        config["run"] = {
-                            **config["run"],
-                            "name": name,
-                            "dir": str(Path(config["run"]["dir"]) / name),
-                            "seed": seed,
-                        }
+                        dilations = [2**index for index in range(num_blocks)]
+                        receptive_field = 1 + 4 * (kernel_size - 1) * sum(dilations)
+                        if receptive_field > 250 or receptive_field < 70:
+                            continue
 
-                        config["dataset"]["params"]["horizon_size"] = horizon_size
-                        config["model"]["params"]["separable"] = separable
-                        config["model"]["params"]["hidden_channels"] = hidden_channels
-                        config["model"]["params"]["num_blocks"] = num_blocks
-                        config["model"]["params"]["kernel_size"] = kernel_size
+                        cur_id += 1
+                        for seed in seeds:
+                            config = copy.deepcopy(base_config)
+                            
+                            name = f"{cur_id:0>3}-s{seed}-h{horizon_size}-sep{int(separable)}-hid{hidden_channels}-bl{num_blocks}-ker{kernel_size}-fs{final_steps}"
+                            config["run"] = {
+                                **config["run"],
+                                "name": name,
+                                "dir": str(Path(config["run"]["dir"]) / name),
+                                "seed": seed,
+                            }
 
-                        sweep_configs.append(config)
+                            config["dataset"]["params"]["horizon_size"] = horizon_size
+                            config["model"]["params"]["separable"] = separable
+                            config["model"]["params"]["hidden_channels"] = hidden_channels
+                            config["model"]["params"]["num_blocks"] = num_blocks
+                            config["model"]["params"]["kernel_size"] = kernel_size
+                            config["model"]["params"]["final_steps"] = final_steps
+
+                            sweep_configs.append(config)
 
 print("total planned runs:", len(sweep_configs))
 
