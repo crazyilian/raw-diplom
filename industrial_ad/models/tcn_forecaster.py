@@ -4,6 +4,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 from .utils import build_activation
+import math
 
 
 class ChannelLayerNorm(nn.Module):
@@ -60,9 +61,9 @@ class ChannelWiseLinear(nn.Module):
         self.reset_parameters()
 
     def reset_parameters(self):
-        nn.init.kaiming_uniform_(self.weight, a=torch.sqrt(5))
+        nn.init.kaiming_uniform_(self.weight, a=math.sqrt(5))
         if self.bias is not None:
-            bound = 1 / torch.sqrt(self.weight.size(1))  # 1/sqrt(L1)
+            bound = 1 / math.sqrt(self.weight.size(1))  # 1/sqrt(L1)
             nn.init.uniform_(self.bias, -bound, bound)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
