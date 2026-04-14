@@ -49,6 +49,29 @@ class CausalConv1d(nn.Module):
             x = F.pad(x, (self.left_padding, 0))
         return self.conv(x)
 
+class ChannelWiseLinear(nn.Module):
+    def __init__(self, num_channels: int, length1: int, length2: int, bias: bool = True):
+        super().__init__()
+        self.weight = nn.Parameter(torch.empty(num_channels, length1, length2))  # (C, L1, L2)
+        if bias:
+            self.bias = nn.Parameter(torch.empty(num_channels, length2))          # (C, L2)
+        else:
+            self.register_parameter("bias", None)
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        nn.init.kaiming_uniform_(self.weight, a=torch.sqrt(5))
+        if self.bias is not None:
+            bound = 1 / torch.sqrt(self.weight.size(1))  # 1/sqrt(L1)
+            nn.init.uniform_(self.bias, -bound, bound)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # x: (B, C, L1)
+        y = torch.einsum("bcl,clm->bcm", x, self.weight)  # -> (B, C, L2)
+        if self.bias is not None:
+            y = y + self.bias  # broadcast по batch
+        return y
+
 
 class DepthwiseSeparableCausalConv1d(nn.Module):
     """Depthwise-separable causal convolution."""
@@ -143,6 +166,7 @@ class TCNForecaster(nn.Module):
         separable: bool = True,
         norm: str = "layer",
         dilations: Sequence[int] | None = None,
+        final_steps: int | None = None
     ) -> None:
         super().__init__()
         self.input_shape = tuple(int(value) for value in input_shape)
@@ -161,6 +185,7 @@ class TCNForecaster(nn.Module):
         self.hidden_channels = int(hidden_channels)
         self.kernel_size = int(kernel_size)
         self.num_blocks = int(num_blocks)
+        self.final_steps = int(final_steps) if final_steps is not None else self.forecast_steps
 
         if dilations is None:
             self.dilations = [2 ** index for index in range(self.num_blocks)]
@@ -185,7 +210,8 @@ class TCNForecaster(nn.Module):
                 for dilation in self.dilations
             ]
         )
-        self.forecast_head = nn.Linear(self.hidden_channels, self.forecast_steps * self.channels)
+        self.output_projection = nn.Conv1d(self.hidden_channels, self.channels, kernel_size=1, bias=False)
+        self.forecast_head = ChannelWiseLinear(self.channels, self.final_steps, self.forecast_steps)
 
     @property
     def receptive_field(self) -> int:
@@ -202,6 +228,7 @@ class TCNForecaster(nn.Module):
         y = x.transpose(1, 2)
         y = self.input_projection(y)
         y = self.blocks(y)
-        context = y[:, :, -1]
+        y = self.output_projection(y)
+        context = y[:, :, -self.final_steps :]
         prediction = self.forecast_head(context)
-        return prediction.reshape(x.shape[0], self.forecast_steps, self.channels)
+        return prediction.transpose(1, 2)
