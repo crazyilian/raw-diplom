@@ -11,6 +11,8 @@ from industrial_ad.models.gru_repeated_ae import GRURepeatedAutoencoder
 from industrial_ad.models.pca import PCAReconstructionModel
 from industrial_ad.models.transformer_ae import TransformerAutoencoder
 from industrial_ad.models.conv_ae import ConvAutoencoder
+from industrial_ad.models.gru_seq2seq_forecaster import GRUSeq2seqForecaster
+from industrial_ad.models.patch_tst import PatchTSTForecaster   
 
 
 def build_model(model_config: dict[str, Any], input_shape: tuple[int, ...], target_shape: tuple[int, ...]):
@@ -37,6 +39,10 @@ def build_model(model_config: dict[str, Any], input_shape: tuple[int, ...], targ
         return MLPForecaster(input_shape=input_shape, output_shape=target_shape, **model_params)
     if model_name == "tcn_forecaster":
         return TCNForecaster(input_shape=input_shape, output_shape=target_shape, **model_params)
+    if model_name == "gru_seq2seq_forecaster":
+        return GRUSeq2seqForecaster(input_shape=input_shape, output_shape=target_shape, **model_params)
+    if model_name == "patch_tst":
+        return PatchTSTForecaster(input_shape=input_shape, output_shape=target_shape, **model_params)
 
     raise ValueError(f"Unknown model: {model_config['name']}")
 

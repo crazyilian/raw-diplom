@@ -14,6 +14,13 @@ import warnings
 from industrial_ad.utils import dump_json
 
 
+def _model_train_forward(model: nn.Module, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+    """Use an optional training-only forward path when the model defines one."""
+    if hasattr(model, "forward_train") and callable(getattr(model, "forward_train")):
+        return model.forward_train(x, y)
+    return model(x)
+
+
 def build_criterion(loss_config: dict[str, Any]):
     """Build the loss function selected in the config."""
     losses = {
@@ -185,7 +192,7 @@ def train_anomaly_detector(
             optimizer.zero_grad(set_to_none=True)
 
             with torch.amp.autocast(device_type=device.type, enabled=bool(trainer_config["amp"])):
-                loss = criterion(detector.model(x), y)
+                loss = criterion(_model_train_forward(detector.model, x, y), y)
 
             scaler.scale(loss).backward()
             scaler.unscale_(optimizer)

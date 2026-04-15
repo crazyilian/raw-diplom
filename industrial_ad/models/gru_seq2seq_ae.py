@@ -27,10 +27,9 @@ class GRUSeq2seqAutoencoder(nn.Module):
         hidden_size: int = 64,
         num_layers: int = 1,
         dropout: float = 0.0,
-        bidirectional_encoder: bool = False,
         teacher_forcing_ratio: float = 0.0,
         reverse_target: bool = False,
-        learned_start: bool = False,
+        **kwargs
     ) -> None:
         super().__init__()
         self.input_shape = tuple(int(v) for v in input_shape)
@@ -49,10 +48,8 @@ class GRUSeq2seqAutoencoder(nn.Module):
         self.time_steps, self.channels = self.input_shape
         self.hidden_size = int(hidden_size)
         self.num_layers = int(num_layers)
-        self.bidirectional_encoder = bool(bidirectional_encoder)
         self.teacher_forcing_ratio = float(teacher_forcing_ratio)
         self.reverse_target = bool(reverse_target)
-        self.learned_start = bool(learned_start)
 
         recurrent_dropout = float(dropout) if self.num_layers > 1 else 0.0
 
@@ -62,13 +59,7 @@ class GRUSeq2seqAutoencoder(nn.Module):
             num_layers=self.num_layers,
             dropout=recurrent_dropout,
             batch_first=True,
-            bidirectional=self.bidirectional_encoder,
         )
-
-        if self.bidirectional_encoder:
-            self.encoder_to_decoder = nn.Linear(2 * self.hidden_size, self.hidden_size)
-        else:
-            self.encoder_to_decoder = nn.Identity()
 
         self.decoder = nn.GRU(
             input_size=self.channels,
@@ -78,28 +69,14 @@ class GRUSeq2seqAutoencoder(nn.Module):
             batch_first=True,
         )
         self.output_projection = nn.Linear(self.hidden_size, self.channels)
-
-        if self.learned_start:
-            self.start_token = nn.Parameter(torch.zeros(1, 1, self.channels))
-        else:
-            self.register_buffer("start_token", torch.zeros(1, 1, self.channels), persistent=False)
+        self.register_buffer("start_token", torch.zeros(1, 1, self.channels), persistent=False)
 
     def _prepare_target(self, x: torch.Tensor) -> torch.Tensor:
         return x.flip(dims=(1,)) if self.reverse_target else x
 
-    def _init_decoder_hidden(self, encoder_hidden: torch.Tensor) -> torch.Tensor:
-        if not self.bidirectional_encoder:
-            return encoder_hidden
-
-        batch_size = encoder_hidden.shape[1]
-        hidden = encoder_hidden.view(self.num_layers, 2, batch_size, self.hidden_size)
-        hidden = torch.cat([hidden[:, 0], hidden[:, 1]], dim=-1)
-        hidden = self.encoder_to_decoder(hidden)
-        return hidden
-
     def encode(self, x: torch.Tensor) -> torch.Tensor:
         _, hidden = self.encoder(x)
-        return self._init_decoder_hidden(hidden)
+        return hidden
 
     def decode(self, target: torch.Tensor, hidden: torch.Tensor) -> torch.Tensor:
         batch_size = target.shape[0]
