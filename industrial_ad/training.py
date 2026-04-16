@@ -110,6 +110,10 @@ def _log_wandb_figures(wandb_run, log_payload: dict[str, Any], figures_by_split:
 
 def _build_summary(history: dict[str, Any], checkpoint_metric: str, best_evaluation: dict[str, Any] | None) -> dict[str, Any]:
     """Build the compact run summary saved next to the full history."""
+    best_metrics = best_evaluation["metrics"] if best_evaluation is not None else {}
+    last_metrics = history["evaluations"][-1]["metrics"] if history["evaluations"] else {}
+    best_metrics['train/loss'] = history["train_epochs"][best_evaluation["epoch"] - 1]["loss"] if best_evaluation is not None else None
+    last_metrics['train/loss'] = history["train_epochs"][-1]["loss"]
     return {
         "best_epoch": history["best_epoch"],
         "best_metric_name": checkpoint_metric,
@@ -117,8 +121,8 @@ def _build_summary(history: dict[str, Any], checkpoint_metric: str, best_evaluat
         "stopped_early": history["stopped_early"],
         "total_time_seconds": history["total_time_seconds"],
         "last_epoch": history["train_epochs"][-1]["epoch"] if history["train_epochs"] else 0,
-        "best_metrics": best_evaluation["metrics"] if best_evaluation is not None else {},
-        "last_metrics": history["evaluations"][-1]["metrics"] if history["evaluations"] else {},
+        "best_metrics": best_metrics,
+        "last_metrics": last_metrics,
     }
 
 

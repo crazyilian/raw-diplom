@@ -25,8 +25,6 @@ base_config["model"] = {
     "name": "gru_seq2seq_ae",
     "params": {
         "dropout": 0.0,
-        "bidirectional_encoder": False,
-        "learned_start": False,
 
         "hidden_size": None,
         "num_layers": None,

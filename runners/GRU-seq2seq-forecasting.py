@@ -81,7 +81,7 @@ seeds = [42, 43, 44]
 sweep_configs = []
 cur_id = 0
 
-for horizon_size in [16, 32, 64]:
+for horizon_size in [16, 32, 64, 120]:
     for teacher_forcing_ratio in [0.25]:
         for num_layers in [1,2,3]:
             for hidden_size in [32, 48, 64, 96, 128, 192]:
@@ -92,7 +92,7 @@ for horizon_size in [16, 32, 64]:
                 cur_id += 1
                 for seed in seeds:
                     config = copy.deepcopy(base_config)
-                    name = f"{cur_id:0>3}-s{seed}-lay{num_layers}-hid{hidden_size}-teach{teacher_forcing_ratio:.2}"
+                    name = f"{cur_id:0>3}-s{seed}-hor{horizon_size}-lay{num_layers}-hid{hidden_size}-rev0-teach{teacher_forcing_ratio:.2}"
                     config["run"] = {
                         **config["run"],
                         "name": name,
