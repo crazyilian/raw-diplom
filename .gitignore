@@ -10,4 +10,6 @@ __pycache__/
 tmp/
 SECRETS.env
 .vscode/
+tmp*
+summary_table.csv
 
