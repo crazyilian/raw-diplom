@@ -50,7 +50,7 @@ class PatchTSTForecaster(nn.Module):
         nhead: int = 4,
         num_layers: int = 2,
         dim_feedforward: int | None = None,
-        dropout: float = 0.1,
+        dropout: float = 0.0,
         activation: str = "gelu",
         norm_first: bool = True,
     ) -> None:
