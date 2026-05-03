@@ -50,7 +50,7 @@ base_config["benchmark"]["enabled"] = False
 
 sweep_configs = []
 for family in families:
-    for source_run_dir in discover_run_dirs(Path("runs") / family, include_quantized=False):
+    for source_run_dir in discover_run_dirs(Path("runs") / family):
         source_config = load_json(source_run_dir / "config.json")
         config = copy.deepcopy(base_config)
         target_family_dir = source_run_dir.parent.with_name(f"{source_run_dir.parent.name}-quant")

@@ -104,22 +104,13 @@ def benchmark_run(
     return result
 
 
-def discover_run_dirs(*roots: str | Path, include_not_quantized: bool = True, include_quantized: bool = True) -> list[Path]:
+def discover_run_dirs(*roots: str | Path) -> list[Path]:
     """Recursively find run directories under `root` by the presence of `summary.json`."""
     res = []
 
-    def filter_f(summary_path: Path) -> bool:
-        # TODO: use config.json instead of run directory name parsing to determine if a run is quantized or not
-        run_name = summary_path.parent.name
-        assert run_name[:3].isdigit() and run_name[3] == "-", f"Unexpected run directory name format: {run_name}"
-        if "-quant-" in run_name:
-            return include_quantized
-        else:
-            return include_not_quantized
-
     for root in roots:
         root = Path(root)
-        res += sorted(summary_path.parent for summary_path in root.rglob("summary.json") if filter_f(summary_path))
+        res += sorted(summary_path.parent for summary_path in root.rglob("summary.json"))
 
     return res
 
