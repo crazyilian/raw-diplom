@@ -178,6 +178,7 @@ def run_quantization(
     run_dir.mkdir(parents=True, exist_ok=True)
     (run_dir / "checkpoints").mkdir(parents=True, exist_ok=True)
     (run_dir / "plots").mkdir(parents=True, exist_ok=True)
+    print('Quantizing run:', Path(config['run']['dir']).parent.name, config['run']['name'])
 
     source_dir, source_config = _source_config(config)
     config_snapshot = _make_config_snapshot(config, source_config)
@@ -187,15 +188,15 @@ def run_quantization(
     if config_snapshot["dataset"]["name"].lower() != "pu":
         raise ValueError(f"Unknown dataset: {config_snapshot['dataset']['name']}")
     if data_bundle is None:
-        print('building pu dataloaders...')
+        # print('building pu dataloaders...')
         data_bundle = build_pu_dataloaders(config_snapshot)
-        print('pu dataloaders built.')
+        # print('pu dataloaders built.')
 
-    print('loading and quantizing the model...')
+    # print('loading and quantizing the model...')
     detector, _ = load_detector_from_run(source_dir, checkpoint=config_snapshot["source"]["checkpoint"])
-    print('model loaded and quantized.')
+    # print('model loaded and quantized.')
     model_name = config_snapshot["model"]["name"]
-    print('applying quantization to the model...')
+    # print('applying quantization to the model...')
     start = time.time()
     detector.model = apply_model_quantization(
         detector.model,
@@ -204,20 +205,20 @@ def run_quantization(
         calibration_loader=data_bundle["loaders"]["train"] if _is_static_model(model_name) else None,
     )
     quantization_time = time.time() - start
-    print('quantization applied to the model.')
+    # print('quantization applied to the model.')
 
     start = time.time()
     max_batches = config_snapshot["evaluation"].get("max_batches")
-    print('fitting score estimator...')
+    # print('fitting score estimator...')
     detector.fit_score_estimator(data_bundle["loaders"]["val"], max_batches=max_batches)
-    print('score estimator fitted.')
-    print('fitting threshold...')
+    # print('score estimator fitted.')
+    # print('fitting threshold...')
     detector.fit_threshold(data_bundle["loaders"]["val"], max_batches=max_batches)
-    print('threshold fitted.')
-    print('evaluating the model...')
+    # print('threshold fitted.')
+    # print('evaluating the model...')
     val_metrics, val_figures = detector.evaluate(data_bundle["loaders"]["val"], prefix="val", max_batches=max_batches)
     test_metrics, test_figures = detector.evaluate(data_bundle["loaders"]["test"], prefix="test", max_batches=max_batches)
-    print('model evaluated.')
+    # print('model evaluated.')
     evaluation_time = time.time() - start
 
     _save_figures(val_figures, run_dir / "plots", "val", 0)
