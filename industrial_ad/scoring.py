@@ -21,6 +21,14 @@ from sklearn.metrics import (
 from torch import nn
 
 
+def _module_device(module: nn.Module) -> torch.device:
+    for tensor in module.parameters():
+        return tensor.device
+    for tensor in module.buffers():
+        return tensor.device
+    return torch.device("cpu")
+
+
 def _reduce_errors(errors: torch.Tensor, reduce_dims: list[int]) -> torch.Tensor:
     """Average selected axes and flatten the remaining error map per sample."""
     for dim in sorted({int(dim) for dim in reduce_dims}, reverse=True):
@@ -223,7 +231,7 @@ class AnomalyDetectorWrapper(nn.Module):
     def fit_score_estimator(self, dataloader, max_batches: int | None) -> None:
         """Fit the score estimator using only normal validation windows."""
         self.model.eval()
-        device = next(self.model.parameters()).device
+        device = _module_device(self.model)
         normal_errors = []
 
         # Validation contains both normal and anomalous windows, but the scorer
@@ -243,7 +251,7 @@ class AnomalyDetectorWrapper(nn.Module):
     def get_scores_and_labels(self, dataloader, max_batches: int | None):
         """Run one split and return NumPy arrays used by threshold fitting and metrics."""
         self.model.eval()
-        device = next(self.model.parameters()).device
+        device = _module_device(self.model)
         scores, labels = [], []
 
         # Keep computations on the model device and move only final score vectors back to CPU.

@@ -16,7 +16,7 @@ from industrial_ad.scoring import (
 )
 from industrial_ad.training import build_criterion, build_optimizer, build_scheduler, train_anomaly_detector
 from industrial_ad.training_pca import train_pca_anomaly_detector
-from industrial_ad.utils import clone_config, count_parameters, dump_json, load_json, parameter_size_bytes, seed_everything
+from industrial_ad.utils import clone_config, count_parameters, dump_json, load_json, parameter_size_bytes, seed_everything, state_dict_size_bytes
 
 
 def _build_detector(config: dict[str, Any], sample_input: torch.Tensor, sample_target: torch.Tensor):
@@ -86,6 +86,7 @@ def _build_summary(run_dir: Path, config: dict[str, Any], runtime: dict[str, Any
             "score_feature_dim": runtime["score_feature_dim"],
             "parameter_count": count_parameters(detector),
             "parameter_size_bytes": parameter_size_bytes(detector),
+            "state_dict_size_bytes": state_dict_size_bytes(detector),
         }
     )
     dump_json(run_dir / "summary.json", summary)
@@ -232,6 +233,10 @@ def load_detector_from_run(run_dir: str | Path, checkpoint: str = "best"):
         input_shape=tuple(runtime["input_shape"]),
         target_shape=tuple(runtime["target_shape"]),
     )
+    if "quantization" in config:
+        from industrial_ad.quantization import apply_model_quantization
+
+        model = apply_model_quantization(model, config["model"]["name"], config["quantization"], calibration_loader=None)
     detector = AnomalyDetectorWrapper(
         model=model,
         error_reducer=build_error_reducer(config["scoring"]["error_reducer"]),

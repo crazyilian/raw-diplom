@@ -9,12 +9,21 @@ from industrial_ad.analysis import (
     plot_metric_history,
     plot_tradeoff_scatter,
 )
-from industrial_ad.config import DEFAULT_EXPERIMENT_CONFIG, make_default_config, validate_experiment_config
+from industrial_ad.config import (
+    DEFAULT_EXPERIMENT_CONFIG,
+    DEFAULT_QUANTIZATION_CONFIG,
+    make_default_config,
+    make_default_quantization_config,
+    validate_experiment_config,
+    validate_quantization_config,
+)
 from industrial_ad.experiments import load_detector_from_run, run_experiment, run_experiments
+from industrial_ad.quantization import run_quantization, run_quantizations
 from industrial_ad.utils import clone_config
 
 __all__ = [
     "DEFAULT_EXPERIMENT_CONFIG",
+    "DEFAULT_QUANTIZATION_CONFIG",
     "benchmark_run",
     "benchmark_runs",
     "clone_config",
@@ -23,11 +32,15 @@ __all__ = [
     "load_run_dataframe",
     "load_run_summaries",
     "make_default_config",
+    "make_default_quantization_config",
     "mark_pareto_front",
     "pareto_mask",
     "plot_metric_history",
     "plot_tradeoff_scatter",
     "run_experiment",
     "run_experiments",
+    "run_quantization",
+    "run_quantizations",
     "validate_experiment_config",
+    "validate_quantization_config",
 ]

@@ -80,9 +80,38 @@ def count_parameters(module: torch.nn.Module) -> int:
     return sum(parameter.numel() for parameter in module.parameters())
 
 
+def _tensor_size_bytes(tensor: torch.Tensor) -> int:
+    """Return raw tensor payload size, including qparams for quantized tensors."""
+    size = tensor.numel() * tensor.element_size()
+    if tensor.is_quantized:
+        qscheme = tensor.qscheme()
+        if qscheme in {torch.per_channel_affine, torch.per_channel_symmetric}:
+            size += tensor.q_per_channel_scales().numel() * tensor.q_per_channel_scales().element_size()
+            size += tensor.q_per_channel_zero_points().numel() * tensor.q_per_channel_zero_points().element_size()
+        else:
+            size += 16
+    return int(size)
+
+
+def tensor_tree_size_bytes(value: Any) -> int:
+    """Recursively count tensor bytes inside nested checkpoint/state-dict values."""
+    if isinstance(value, torch.Tensor):
+        return _tensor_size_bytes(value)
+    if isinstance(value, dict):
+        return sum(tensor_tree_size_bytes(item) for item in value.values())
+    if isinstance(value, (list, tuple)):
+        return sum(tensor_tree_size_bytes(item) for item in value)
+    return 0
+
+
+def state_dict_size_bytes(module: torch.nn.Module) -> int:
+    """Estimate the raw tensor footprint of a module state_dict."""
+    return sum(tensor_tree_size_bytes(value) for value in module.state_dict().values())
+
+
 def parameter_size_bytes(module: torch.nn.Module) -> int:
-    """Estimate the raw parameter footprint in bytes."""
-    total = 0
-    for parameter in module.parameters():
-        total += parameter.numel() * parameter.element_size()
-    return total
+    """Estimate saved model footprint in bytes, including quantized packed weights."""
+    size = state_dict_size_bytes(module)
+    if size > 0:
+        return size
+    return sum(parameter.numel() * parameter.element_size() for parameter in module.parameters())

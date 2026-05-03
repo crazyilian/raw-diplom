@@ -128,9 +128,34 @@ DEFAULT_EXPERIMENT_CONFIG: dict[str, Any] = {
         "device": "cpu",
         "num_threads": 1,
         "warmup_runs": 50,
-        "num_runs": 200,
+        "num_runs": 2000,
         "profile_memory": True,
     },
+}
+
+
+DEFAULT_QUANTIZATION_CONFIG: dict[str, Any] = {
+    "run": {
+        "name": "",
+        "dir": "",
+        "seed": 42,
+        "notes": "",
+        "tags": [],
+    },
+    "source": {
+        "run_dir": "",
+        "checkpoint": "best",
+    },
+    "evaluation": {
+        "metric": "val/roc_auc",
+        "max_batches": None,
+    },
+    "quantization": {
+        "backend": "fbgemm",
+        "dtype": "qint8",
+        "calibration_batches": None,
+    },
+    "benchmark": clone_config(DEFAULT_EXPERIMENT_CONFIG["benchmark"]),
 }
 
 
@@ -178,3 +203,36 @@ def validate_experiment_config(config: dict[str, Any]) -> None:
         raise ValueError(f"Unsupported task type: {config['task']['type']}")
     if task_type == "forecasting" and int(config["dataset"]["params"]["horizon_size"]) <= 0:
         raise ValueError("Forecasting experiments require dataset.params.horizon_size > 0.")
+
+
+def make_default_quantization_config() -> dict[str, Any]:
+    """Return a writable copy of the quantization config template."""
+    return clone_config(DEFAULT_QUANTIZATION_CONFIG)
+
+
+def validate_quantization_config(config: dict[str, Any]) -> None:
+    """Validate the fields that must be explicitly set before quantization starts."""
+    required_string_fields = {
+        "run.name": config["run"]["name"],
+        "run.dir": config["run"]["dir"],
+        "source.run_dir": config["source"]["run_dir"],
+        "source.checkpoint": config["source"]["checkpoint"],
+        "evaluation.metric": config["evaluation"]["metric"],
+        "quantization.backend": config["quantization"]["backend"],
+        "quantization.dtype": config["quantization"]["dtype"],
+    }
+    for field_name, value in required_string_fields.items():
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError(f"{field_name} must be a non-empty string.")
+
+    if config["quantization"]["calibration_batches"] is not None and int(config["quantization"]["calibration_batches"]) <= 0:
+        raise ValueError("quantization.calibration_batches must be positive.")
+
+    max_batches = config["evaluation"].get("max_batches")
+    if max_batches is not None and int(max_batches) <= 0:
+        raise ValueError("evaluation.max_batches must be positive or None.")
+
+    if bool(config["benchmark"]["enabled"]):
+        for field_name in ["num_threads", "warmup_runs", "num_runs"]:
+            if int(config["benchmark"][field_name]) <= 0:
+                raise ValueError(f"benchmark.{field_name} must be positive.")

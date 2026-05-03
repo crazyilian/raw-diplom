@@ -51,27 +51,31 @@ class CausalConv1d(nn.Module):
         return self.conv(x)
 
 class ChannelWiseLinear(nn.Module):
+    """Independent per-channel linear map implemented as grouped Conv1d."""
+
     def __init__(self, num_channels: int, length1: int, length2: int, bias: bool = True):
         super().__init__()
-        self.weight = nn.Parameter(torch.empty(num_channels, length1, length2))  # (C, L1, L2)
-        if bias:
-            self.bias = nn.Parameter(torch.empty(num_channels, length2))          # (C, L2)
-        else:
-            self.register_parameter("bias", None)
+        self.num_channels = int(num_channels)
+        self.length1 = int(length1)
+        self.length2 = int(length2)
+        rng_state = torch.random.get_rng_state() # fix of old implementation for reproducibility of old models
+        self.projection = nn.Conv1d(self.num_channels, self.num_channels * self.length2, self.length1, groups=self.num_channels, bias=bias)
+        torch.random.set_rng_state(rng_state)
         self.reset_parameters()
 
-    def reset_parameters(self):
-        nn.init.kaiming_uniform_(self.weight, a=math.sqrt(5))
-        if self.bias is not None:
-            bound = 1 / math.sqrt(self.weight.size(1))  # 1/sqrt(L1)
-            nn.init.uniform_(self.bias, -bound, bound)
+    def reset_parameters(self) -> None:
+        weight = self.projection.weight.new_empty(self.num_channels, self.length1, self.length2)
+        nn.init.kaiming_uniform_(weight, a=math.sqrt(5))
+        with torch.no_grad():
+            self.projection.weight.copy_(weight.permute(0, 2, 1).contiguous().view_as(self.projection.weight))
+            if self.projection.bias is not None:
+                bound = 1 / math.sqrt(self.length1)
+                nn.init.uniform_(self.projection.bias.view(self.num_channels, self.length2), -bound, bound)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # x: (B, C, L1)
-        y = torch.einsum("bcl,clm->bcm", x, self.weight)  # -> (B, C, L2)
-        if self.bias is not None:
-            y = y + self.bias  # broadcast по batch
-        return y
+        # x: (B, C, L1) -> (B, C, L2)
+        y = self.projection(x).squeeze(-1)
+        return y.reshape(x.shape[0], self.num_channels, self.length2)
 
 
 class DepthwiseSeparableCausalConv1d(nn.Module):
