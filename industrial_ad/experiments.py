@@ -245,9 +245,13 @@ def load_detector_from_run(run_dir: str | Path, checkpoint: str = "best"):
     )
 
     checkpoint_path = run_dir / "checkpoints" / f"{checkpoint}.pt"
+
     if not checkpoint_path.exists() and checkpoint != "last":
         checkpoint_path = run_dir / "checkpoints" / "last.pt"
-    detector.load_state_dict(torch.load(checkpoint_path, map_location="cpu"))
+
+    with torch.serialization.safe_globals([torch.ScriptObject]):
+        state_dict = torch.load(checkpoint_path, map_location="cpu", weights_only=True)
+    detector.load_state_dict(state_dict)
     detector.eval()
     return detector, config
 
