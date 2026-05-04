@@ -66,6 +66,18 @@ def _qint_dtype(name: str) -> torch.dtype:
     return torch.qint8
 
 
+def _disable_transformer_fastpath(module: nn.Module, inputs) -> None:
+    return None
+
+
+def _prepare_dynamic_model(model: nn.Module, model_name: str) -> nn.Module:
+    if model_name.lower() == "transformer_ae":
+        for module in model.modules():
+            if isinstance(module, nn.TransformerEncoderLayer):
+                module.register_forward_pre_hook(_disable_transformer_fastpath)
+    return model
+
+
 def _wrap_static_modules(module: nn.Module) -> nn.Module:
     for name, child in list(module.named_children()):
         if isinstance(child, _STATIC_MODULES):
@@ -96,7 +108,8 @@ def apply_model_quantization(
     torch.backends.quantized.engine = str(quantization_config["backend"])
 
     if not _is_static_model(model_name):
-        return torch.ao.quantization.quantize_dynamic(model, _DYNAMIC_MODULES, dtype=dtype, inplace=False)
+        model = torch.ao.quantization.quantize_dynamic(model, _DYNAMIC_MODULES, dtype=dtype, inplace=False)
+        return _prepare_dynamic_model(model, model_name)
 
     model = _wrap_static_modules(model)
     qconfig = torch.ao.quantization.get_default_qconfig(str(quantization_config["backend"]))
