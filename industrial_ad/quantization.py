@@ -16,7 +16,6 @@ from industrial_ad.experiments import load_detector_from_run
 from industrial_ad.training import _close_figures, _save_figures
 from industrial_ad.utils import (
     clone_config,
-    count_parameters,
     dump_json,
     load_json,
     parameter_size_bytes,
@@ -153,6 +152,7 @@ def _build_summary(
     evaluation_time: float,
 ) -> dict[str, Any]:
     metric_name = config["evaluation"]["metric"]
+    source_dir = Path(config["source"]["run_dir"])
     return {
         "best_metric_name": metric_name,
         "best_metric_value": metrics[metric_name],
@@ -160,14 +160,14 @@ def _build_summary(
         "family": run_dir.parent.name,
         "run_name": config["run"]["name"],
         "run_dir": str(run_dir),
+        "source_family": source_dir.parent.name,
+        "source_run_name": source_dir.name,
         "model_name": config["model"]["name"],
         "task_type": config["task"]["type"],
         "input_shape": config["runtime"]["input_shape"],
         "target_shape": config["runtime"]["target_shape"],
         "score_feature_dim": config["runtime"]["score_feature_dim"],
-        "parameter_count": count_parameters(detector),
         "parameter_size_bytes": parameter_size_bytes(detector),
-        "state_dict_size_bytes": state_dict_size_bytes(detector),
         "quantization_time_seconds": quantization_time,
         "evaluation_time_seconds": evaluation_time,
     }

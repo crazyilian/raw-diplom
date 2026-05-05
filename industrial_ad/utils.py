@@ -80,33 +80,48 @@ def count_parameters(module: torch.nn.Module) -> int:
     return sum(parameter.numel() for parameter in module.parameters())
 
 
-def _tensor_size_bytes(tensor: torch.Tensor) -> int:
+def _tensor_key(tensor: torch.Tensor) -> tuple[Any, ...]:
+    return (tensor.device.type, tensor.device.index, tensor.data_ptr(), tuple(tensor.shape), tuple(tensor.stride()), tensor.dtype)
+
+
+def _tensor_size_bytes(tensor: torch.Tensor, seen: set[tuple[Any, ...]]) -> int:
     """Return raw tensor payload size, including qparams for quantized tensors."""
+    key = _tensor_key(tensor)
+    if key in seen:
+        return 0
+    seen.add(key)
+
     size = tensor.numel() * tensor.element_size()
     if tensor.is_quantized:
         qscheme = tensor.qscheme()
         if qscheme in {torch.per_channel_affine, torch.per_channel_symmetric}:
-            size += tensor.q_per_channel_scales().numel() * tensor.q_per_channel_scales().element_size()
-            size += tensor.q_per_channel_zero_points().numel() * tensor.q_per_channel_zero_points().element_size()
+            size += _tensor_size_bytes(tensor.q_per_channel_scales(), seen)
+            size += _tensor_size_bytes(tensor.q_per_channel_zero_points(), seen)
         else:
             size += 16
     return int(size)
 
 
+def _tensor_tree_size_bytes(value: Any, seen: set[tuple[Any, ...]]) -> int:
+    if isinstance(value, torch.Tensor):
+        return _tensor_size_bytes(value, seen)
+    if isinstance(value, torch.ScriptObject):
+        return _tensor_tree_size_bytes(value.__getstate__(), seen)
+    if isinstance(value, dict):
+        return sum(_tensor_tree_size_bytes(item, seen) for item in value.values())
+    if isinstance(value, (list, tuple)):
+        return sum(_tensor_tree_size_bytes(item, seen) for item in value)
+    return 0
+
+
 def tensor_tree_size_bytes(value: Any) -> int:
     """Recursively count tensor bytes inside nested checkpoint/state-dict values."""
-    if isinstance(value, torch.Tensor):
-        return _tensor_size_bytes(value)
-    if isinstance(value, dict):
-        return sum(tensor_tree_size_bytes(item) for item in value.values())
-    if isinstance(value, (list, tuple)):
-        return sum(tensor_tree_size_bytes(item) for item in value)
-    return 0
+    return _tensor_tree_size_bytes(value, set())
 
 
 def state_dict_size_bytes(module: torch.nn.Module) -> int:
     """Estimate the raw tensor footprint of a module state_dict."""
-    return sum(tensor_tree_size_bytes(value) for value in module.state_dict().values())
+    return tensor_tree_size_bytes(module.state_dict())
 
 
 def parameter_size_bytes(module: torch.nn.Module) -> int:
