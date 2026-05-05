@@ -6,6 +6,7 @@ from industrial_ad.models.mlp_ae import MLPAutoencoder
 from industrial_ad.models.mlp_forecaster import MLPForecaster
 from industrial_ad.models.tcn_ae import TCNAutoencoder
 from industrial_ad.models.tcn_forecaster import TCNForecaster
+from industrial_ad.models.tcn_light_forecaster import TCNLightForecaster
 from industrial_ad.models.gru_seq2seq_ae import GRUSeq2seqAutoencoder
 from industrial_ad.models.gru_repeated_ae import GRURepeatedAutoencoder
 from industrial_ad.models.pca import PCAReconstructionModel
@@ -39,6 +40,8 @@ def build_model(model_config: dict[str, Any], input_shape: tuple[int, ...], targ
         return MLPForecaster(input_shape=input_shape, output_shape=target_shape, **model_params)
     if model_name == "tcn_forecaster":
         return TCNForecaster(input_shape=input_shape, output_shape=target_shape, **model_params)
+    if model_name == "tcn_light_forecaster":
+        return TCNLightForecaster(input_shape=input_shape, output_shape=target_shape, **model_params)
     if model_name == "gru_seq2seq_forecaster":
         return GRUSeq2seqForecaster(input_shape=input_shape, output_shape=target_shape, **model_params)
     if model_name == "patch_tst":
