@@ -210,7 +210,7 @@ def plot_tradeoff_scatter(
     *,
     x: str,
     y: str,
-    pareto_column: str,
+    pareto_column: str | None = None,
     label_column: str | None = None,
     family_column: str | None = None,
     log_x: bool = False,
@@ -227,7 +227,7 @@ def plot_tradeoff_scatter(
 
     for i, family in enumerate(families):
         family_df = df if family_column is None else df[df[family_column] == family]
-        is_pareto = family_df[pareto_column].astype(bool)
+        is_pareto = family_df[pareto_column].astype(bool) if pareto_column is not None else pd.Series([False] * len(family_df), index=family_df.index)
         others = family_df[~is_pareto]
         pareto = family_df[is_pareto]
         color = cmap(i)
