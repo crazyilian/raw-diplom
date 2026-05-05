@@ -11,5 +11,5 @@ tmp/
 SECRETS.env
 .vscode/
 tmp*
-summary_table.csv
+summary_table*.csv
 
