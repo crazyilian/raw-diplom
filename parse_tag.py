@@ -88,6 +88,20 @@ def parse_tag(family, name, with_seed=False):
             'kernel_size': int(groups[4]),
             'final_steps': int(groups[5]),
         }
+    
+    elif family == "TCN-light-forecasting":
+        pat = r'h(\d+)-sep(\d+)-hid(\d+)-bl(\d+)-ker(\d+)-fs(\d+)-tb(\d+)-mix(\d+)'
+        groups = get_groups(pat)
+        return {
+            'horizon_size': int(groups[0]),
+            'separable': bool(int(groups[1])),
+            'hidden_channels': int(groups[2]),
+            'num_blocks': int(groups[3]),
+            'kernel_size': int(groups[4]),
+            'final_steps': int(groups[5]),
+            'head_temporal_bases': int(groups[6]),
+            'head_mixer_channels': int(groups[7])
+        }
 
     elif family == 'GRU-seq2seq-forecasting':
         pat = r'hor(\d+)-lay(\d+)-hid(\d+)-rev0-teach(\d+\.\d+)'

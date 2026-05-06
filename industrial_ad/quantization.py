@@ -25,7 +25,7 @@ from industrial_ad.utils import (
 
 _DYNAMIC_MODULES = {nn.Linear, nn.GRU}
 _STATIC_MODULES = (nn.Conv1d, nn.Linear)
-_STATIC_MODEL_NAMES = {"conv_ae", "tcn_ae", "tcn_forecaster"}
+_STATIC_MODEL_NAMES = {"conv_ae", "tcn_ae", "tcn_forecaster", "tcn_light_forecaster"}
 _DYNAMIC_MODEL_NAMES = {
     "window_mlp",
     "mlp_ae",
