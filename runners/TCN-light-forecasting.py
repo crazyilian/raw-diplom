@@ -82,10 +82,11 @@ seeds = [42, 43, 44]
 sweep_configs = []
 cur_id = 0
 
-for horizon_size in [16, 32, 64, 120, 240]:
-    for separable in [True]:
-        for hidden_channels in [16, 32, 64]:
-            for num_blocks in [4]:
+
+for num_blocks in [4, 2, 3]:
+    for horizon_size in [16, 32, 64, 120, 240]:
+        for separable in [True]:
+            for hidden_channels in [16, 32, 64]:
                 for kernel_size in [5]:
                     for final_steps in [horizon_size // 4, horizon_size // 2, horizon_size]:
                         if final_steps > 120:
